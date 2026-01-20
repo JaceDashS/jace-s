@@ -786,7 +786,7 @@ export default function MainContent() {
                   profileDescription={profileDescription}
                   greetingText={greetingText[language]}
                   nameSuffix={nameSuffix[language]}
-                  disablePointerEvents={scrollProgress >= 1.5}
+                  disablePointerEvents={scrollProgress >= 2}
                 />
                 <CardBack
                   scrollProgress={scrollProgress}
