@@ -20,13 +20,22 @@ export async function GET(request: NextRequest) {
     try {
     // 서버 사이드에서만 접근 가능한 환경 변수 사용
     const assetsUrl = process.env.ASSETS_URL || process.env.NEXT_PUBLIC_ASSETS_URL || '';
+    const instagramUrl = process.env.NEXT_PUBLIC_INSTAGRAM_URL || '';
+    const githubUrl = process.env.NEXT_PUBLIC_GITHUB_URL || '';
+    const email = process.env.NEXT_PUBLIC_EMAIL || '';
+    const compositionUrl = process.env.NEXT_PUBLIC_COMPOSITION_URL || '';
+    const guitarUrl = process.env.NEXT_PUBLIC_GUITAR_URL || '';
     
     // URL 끝의 슬래시 제거
     const cleanAssetsUrl = assetsUrl.replace(/\/$/, '');
     
     const response = NextResponse.json({
       assetsUrl: cleanAssetsUrl,
-      // 필요시 다른 런타임 설정 추가 가능
+      instagramUrl,
+      githubUrl,
+      email,
+      compositionUrl,
+      guitarUrl,
     });
     return setCorsHeaders(request, response);
   } catch (error) {

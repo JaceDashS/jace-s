@@ -147,6 +147,25 @@ export default function CardFront({
   const [buttonFontSize, setButtonFontSize] = useState(`${initialButtonFontMax}rem`);
   const [iconSize, setIconSize] = useState(`${initialIconSizeMax}rem`);
   const [emailCopied, setEmailCopied] = useState(false);
+  
+  // 런타임 환경 변수 (서버 사이드에서는 process.env, 클라이언트 사이드에서는 /api/config)
+  // 초기값은 빌드 타임 값 (서버/클라이언트 모두 동일하게 설정하여 Hydration 오류 방지)
+  // useEffect에서 런타임 값으로 업데이트됨
+  const [instagramUrl, setInstagramUrl] = useState<string>(
+    process.env.NEXT_PUBLIC_INSTAGRAM_URL || ''
+  );
+  const [githubUrl, setGithubUrl] = useState<string>(
+    process.env.NEXT_PUBLIC_GITHUB_URL || ''
+  );
+  const [email, setEmail] = useState<string>(
+    process.env.NEXT_PUBLIC_EMAIL || ''
+  );
+  const [compositionUrl, setCompositionUrl] = useState<string>(
+    process.env.NEXT_PUBLIC_COMPOSITION_URL || ''
+  );
+  const [guitarUrl, setGuitarUrl] = useState<string>(
+    process.env.NEXT_PUBLIC_GUITAR_URL || ''
+  );
 
   const linkedDescription = useMemo(() => {
     if (!profileDescription) return null;
@@ -155,12 +174,12 @@ export default function CardFront({
       {
         key: 'composition',
         text: profileLinks?.composition,
-        url: process.env.NEXT_PUBLIC_COMPOSITION_URL,
+        url: compositionUrl,
       },
       {
         key: 'guitar',
         text: profileLinks?.guitar,
-        url: process.env.NEXT_PUBLIC_GUITAR_URL,
+        url: guitarUrl,
       },
     ].filter((entry) => entry.text && entry.url) as Array<{
       key: string;
@@ -196,7 +215,41 @@ export default function CardFront({
         </a>
       );
     });
-  }, [profileDescription, profileLinks]);
+  }, [profileDescription, profileLinks, compositionUrl, guitarUrl]);
+
+  // 런타임 환경 변수 가져오기 (클라이언트 사이드만)
+  useEffect(() => {
+    // 클라이언트 사이드에서만 /api/config를 통해 가져오기
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    const fetchConfig = async () => {
+      try {
+        const response = await fetch('/api/config', {
+          cache: 'no-store',
+        });
+        if (response.ok) {
+          const config = await response.json();
+          setInstagramUrl(config.instagramUrl || '');
+          setGithubUrl(config.githubUrl || '');
+          setEmail(config.email || '');
+          setCompositionUrl(config.compositionUrl || '');
+          setGuitarUrl(config.guitarUrl || '');
+        }
+      } catch (error) {
+        console.error('[CardFront] Failed to fetch config:', error);
+        // 실패 시 빌드 타임 값 사용 (fallback)
+        setInstagramUrl(process.env.NEXT_PUBLIC_INSTAGRAM_URL || '');
+        setGithubUrl(process.env.NEXT_PUBLIC_GITHUB_URL || '');
+        setEmail(process.env.NEXT_PUBLIC_EMAIL || '');
+        setCompositionUrl(process.env.NEXT_PUBLIC_COMPOSITION_URL || '');
+        setGuitarUrl(process.env.NEXT_PUBLIC_GUITAR_URL || '');
+      }
+    };
+
+    fetchConfig();
+  }, []);
 
   // 카드 너비에 따라 폰트 크기 및 버튼 크기 조정
   useEffect(() => {
@@ -496,9 +549,9 @@ export default function CardFront({
       <div className={styles.buttonGroup}>
         <div className={styles.socialButtonRow}>
           {/* Instagram */}
-          {process.env.NEXT_PUBLIC_INSTAGRAM_URL && (
+          {instagramUrl && (
             <a
-              href={process.env.NEXT_PUBLIC_INSTAGRAM_URL}
+              href={instagramUrl}
               target="_blank"
               rel="noopener noreferrer"
               className={`${styles.buttonBase} ${styles.buttonFilled} ${styles.buttonSocial}`}
@@ -521,9 +574,9 @@ export default function CardFront({
             </a>
           )}
           {/* GitHub */}
-          {process.env.NEXT_PUBLIC_GITHUB_URL && (
+          {githubUrl && (
             <a
-              href={process.env.NEXT_PUBLIC_GITHUB_URL}
+              href={githubUrl}
               target="_blank"
               rel="noopener noreferrer"
               className={`${styles.buttonBase} ${styles.buttonFilled} ${styles.buttonSocial}`}
@@ -546,8 +599,7 @@ export default function CardFront({
             </a>
           )}
           {/* Email */}
-          {process.env.NEXT_PUBLIC_EMAIL && (() => {
-            const email = process.env.NEXT_PUBLIC_EMAIL;
+          {email && (() => {
             
             const handleEmailClick = async (e: MouseEvent<HTMLAnchorElement>) => {
               e.preventDefault();
