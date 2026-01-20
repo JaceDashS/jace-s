@@ -105,6 +105,32 @@
   flex: 1 1 0%;
   margin-bottom: 2rem;
   overflow-y: auto;
+  overflow-x: hidden;
+  position: relative;
+  z-index: 0;
+  padding-right: 8px;
+  box-sizing: border-box;
+  /* CSS Module의 해시된 클래스명이 높은 specificity를 제공하므로 !important 불필요 */
+  scrollbar-width: auto;
+  scrollbar-color: rgba(255, 255, 255, 0.35) rgba(255, 255, 255, 0.08);
+  scrollbar-gutter: stable;
+  -ms-overflow-style: auto;
+}
+
+.appsList::-webkit-scrollbar {
+  display: block;
+  width: 8px;
+  height: 8px;
+}
+
+.appsList::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 999px;
+}
+
+.appsList::-webkit-scrollbar-thumb {
+  background-color: rgba(255, 255, 255, 0.35);
+  border-radius: 999px;
 }
 
 .paginationContainer {
