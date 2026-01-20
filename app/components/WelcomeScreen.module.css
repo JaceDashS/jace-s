@@ -1,0 +1,68 @@
+/**
+ * WelcomeScreen 컴포넌트 스타일
+ */
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  background-color: rgb(15 23 42);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition-property: all;
+  transition-duration: 800ms;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.overlayExiting {
+  opacity: 0;
+  filter: blur(12px);
+  transform: scale(1.05);
+}
+
+.overlayBlocking {
+  opacity: 0;
+  filter: blur(0);
+  transform: scale(1);
+  pointer-events: auto;
+}
+
+.overlayEntering {
+  opacity: 1;
+  filter: blur(0);
+  transform: scale(1);
+}
+
+.content {
+  text-align: center;
+  transition-property: all;
+  transition-duration: 700ms;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.contentExiting {
+  opacity: 0;
+  transform: translateY(-20px);
+}
+
+.contentEntering {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.title {
+  font-size: 3rem;
+  line-height: 1;
+  font-weight: 700;
+  color: rgb(255 255 255);
+  margin-bottom: 1rem;
+  font-family: ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
+}
+
+.subtitle {
+  font-size: 1.25rem;
+  line-height: 1.75rem;
+  color: rgba(255, 255, 255, 0.7);
+}
+

@@ -1,0 +1,101 @@
+@import "tailwindcss";
+
+/* 스크롤바 숨기기 - 모든 브라우저 지원 (강력한 버전) */
+* {
+  scrollbar-width: none !important; /* Firefox */
+  -ms-overflow-style: none !important; /* IE and Edge */
+}
+
+*::-webkit-scrollbar {
+  display: none !important; /* Chrome, Safari, Opera */
+  width: 0 !important;
+  height: 0 !important;
+}
+
+html {
+  scrollbar-width: none !important;
+  -ms-overflow-style: none !important;
+}
+
+html::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+
+body {
+  scrollbar-width: none !important;
+  -ms-overflow-style: none !important;
+  overflow-x: hidden;
+  background-color: rgb(15 23 42); /* WelcomeScreen과 동일한 배경색 */
+  margin: 0;
+  padding: 0;
+}
+
+body::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+
+/* 문서 루트 요소에도 적용 */
+:root {
+  scrollbar-width: none !important;
+  -ms-overflow-style: none !important;
+}
+
+:root::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+
+@keyframes home-card-shake {
+  0% {
+    transform: var(--home-card-transform) translate3d(0, 0, 0) rotate(0deg);
+  }
+  15% {
+    transform: var(--home-card-transform) translate3d(-1px, 0, 0) rotate(-0.6deg);
+  }
+  30% {
+    transform: var(--home-card-transform) translate3d(1px, 0, 0) rotate(0.6deg);
+  }
+  45% {
+    transform: var(--home-card-transform) translate3d(-1px, 0, 0) rotate(-0.6deg);
+  }
+  60% {
+    transform: var(--home-card-transform) translate3d(1px, 0, 0) rotate(0.6deg);
+  }
+  100% {
+    transform: var(--home-card-transform) translate3d(0, 0, 0) rotate(0deg);
+  }
+}
+
+.home-card-shake {
+  animation: home-card-shake 0.2s ease-in-out;
+}
+
+@media (max-width: 600px) {
+  body {
+    overflow: hidden;
+  }
+
+  body > * {
+    display: none !important;
+  }
+
+  body::before {
+    content: "모바일 폼은 준비중입니다";
+    position: fixed;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: rgb(15 23 42);
+    color: rgba(255, 255, 255, 0.9);
+    font-size: 1rem;
+    text-align: center;
+    padding: 1.5rem;
+    z-index: 9999;
+  }
+}

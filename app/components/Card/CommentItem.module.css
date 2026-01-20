@@ -1,0 +1,397 @@
+/**
+ * CommentItem 컴포넌트 스타일
+ */
+
+.commentContainer {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+  width: 100%;
+  box-sizing: border-box;
+  overflow-wrap: break-word;
+  word-wrap: break-word;
+}
+
+.commentParent {
+  padding-top: 0.75rem;
+  padding-bottom: 0.75rem;
+}
+
+.commentChild {
+  padding-top: 0.5rem;
+  padding-bottom: 0.5rem;
+  padding-left: 1.25rem;
+  margin-left: 0;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.25rem;
+}
+
+.userInfo {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+
+.userName {
+  font-weight: 500;
+  font-size: 1rem;
+  max-width: 18rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.userNameChild {
+  font-weight: 500;
+  font-size: 0.875rem;
+  max-width: 16rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.userTime {
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 0.875rem;
+}
+
+.userTimeChild {
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 0.75rem;
+}
+
+.menuButton {
+  color: rgba(255, 255, 255, 0.6);
+  transition-property: color;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 150ms;
+  font-size: 1.25rem;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.menuButton:hover {
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.menuButtonChild {
+  font-size: 1.125rem;
+}
+
+.menuContainer {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.menuButtonParent,
+.menuButtonChild {
+  background: none;
+  border: none;
+  cursor: pointer;
+  line-height: 1;
+  color: rgba(255, 255, 255, 0.6);
+  transition: color 150ms cubic-bezier(0.4, 0, 0.2, 1);
+  flex-shrink: 0;
+}
+
+.menuButtonParent {
+  font-size: 1.25rem;
+}
+
+.menuButtonParent:hover,
+.menuButtonChild:hover {
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.dropdownMenu {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin-top: 0.25rem;
+  background-color: rgb(31 41 55);
+  border: 1px solid rgb(55 65 81);
+  border-radius: 0.5rem;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  z-index: 10;
+  min-width: max-content;
+  white-space: nowrap;
+}
+
+.dropdownItemParent,
+.dropdownItemChild {
+  padding: 0.5rem 0.75rem;
+  transition-property: background-color;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 150ms;
+  cursor: pointer;
+  color: rgb(255 255 255);
+  font-size: 0.875rem;
+  white-space: nowrap;
+}
+
+.dropdownItemParent:hover,
+.dropdownItemChild:hover {
+  background-color: rgb(55 65 81);
+}
+
+.menuDropdown {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin-top: 0.25rem;
+  background-color: rgb(31 41 55);
+  border: 1px solid rgb(55 65 81);
+  border-radius: 0.5rem;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  z-index: 10;
+  min-width: max-content;
+}
+
+.menuItem {
+  padding: 0.5rem 0.75rem;
+  transition-property: background-color;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 150ms;
+  cursor: pointer;
+  color: rgb(255 255 255);
+  font-size: 0.875rem;
+  white-space: nowrap;
+}
+
+.menuItem:hover {
+  background-color: rgb(55 65 81);
+}
+
+.content {
+  margin-bottom: 0.5rem;
+  font-size: 1rem;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  word-break: break-word;
+}
+
+.contentChild {
+  font-size: 0.875rem;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  word-break: break-word;
+}
+
+.actionRow {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.25rem;
+}
+
+.actionButton {
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 0.75rem;
+  padding: 0;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+}
+
+.actionButton:hover {
+  color: rgba(255, 255, 255, 0.9);
+}
+
+@media (max-width: 640px) {
+  .content {
+    font-size: 0.875rem;
+  }
+  
+  .contentChild {
+    font-size: 0.75rem;
+  }
+}
+
+.editForm {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.editTextarea {
+  flex: 1 1 0%;
+}
+
+.textarea {
+  width: 100%;
+  padding: 0.5rem;
+  background-color: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 0.5rem;
+  color: rgb(255 255 255);
+  resize: none;
+}
+
+.textarea::placeholder {
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.textarea:focus {
+  outline: none;
+  border-color: rgba(255, 255, 255, 0.4);
+}
+
+.editInputs {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  width: 25%;
+  min-width: 100px;
+}
+
+@media (max-width: 640px) {
+  .editInputs {
+    width: 30%;
+    min-width: 80px;
+  }
+}
+
+.deleteForm {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.deleteInput {
+  flex: 1 1 0%;
+  padding: 0.5rem;
+  background-color: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 0.5rem;
+  color: rgb(255 255 255);
+}
+
+.deleteInput::placeholder {
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.deleteInput:focus {
+  outline: none;
+  border-color: rgba(255, 255, 255, 0.4);
+}
+
+.button {
+  padding: 0.5rem 1rem;
+  border-radius: 0.5rem;
+  font-size: 0.875rem;
+  transition-property: background-color;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 150ms;
+}
+
+.buttonPrimary {
+  background-color: rgb(147 51 234);
+  color: rgb(255 255 255);
+}
+
+.buttonPrimary:hover {
+  background-color: rgb(126 34 206);
+}
+
+.buttonSecondary {
+  background-color: rgb(75 85 99);
+  color: rgb(255 255 255);
+}
+
+.buttonSecondary:hover {
+  background-color: rgb(55 65 81);
+}
+
+.historySection {
+  margin-top: 0.75rem;
+  padding: 0.75rem;
+  background-color: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 0.5rem;
+}
+
+.historyTitle {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-size: 0.875rem;
+  color: rgba(255, 255, 255, 0.8);
+  font-weight: 700;
+}
+
+.historyLoading {
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 0.875rem;
+}
+
+.historyList {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.historyItem {
+  font-size: 0.875rem;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.historyVersion {
+  font-weight: 500;
+}
+
+.historyTime {
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 0.875rem;
+}
+
+.historyEmpty {
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 0.875rem;
+}
+
+.replyButton {
+  color: rgb(147 197 253);
+  transition-property: color;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 150ms;
+  font-size: 0.875rem;
+  margin-top: 0.5rem;
+}
+
+.replyButton:hover {
+  color: rgb(191 219 254);
+}
+
+.replyForm {
+  margin-top: 0.75rem;
+  margin-left: 1.25rem;
+  display: flex;
+  gap: 0.5rem;
+}
+
+.replyTextarea {
+  flex: 1 1 0%;
+}
+
+.replyInputs {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  width: 25%;
+  min-width: 100px;
+}
+
+@media (max-width: 640px) {
+  .replyInputs {
+    width: 30%;
+    min-width: 80px;
+  }
+}
+
+.deletedText {
+  color: rgba(255, 255, 255, 0.5);
+  font-style: italic;
+}
+
