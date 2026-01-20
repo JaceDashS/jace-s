@@ -453,24 +453,22 @@ export default function MainContent() {
   useEffect(() => {
     if (!showContent || !isAnimating) return;
 
-    const scrollToMarker = (ref: React.RefObject<HTMLDivElement | null>) => {
-      if (ref.current) {
-        const element = ref.current;
-        const offset = element.offsetTop;
-        window.scrollTo({
-          top: offset,
-          behavior: 'smooth',
-        });
-      }
+    const scrollToProgress = (progress: number) => {
+      const windowHeight = window.innerHeight;
+      const targetScrollY = windowHeight * progress;
+      window.scrollTo({
+        top: targetScrollY,
+        behavior: 'smooth',
+      });
     };
 
-    // pathname 변경 시 해당 마커로 스크롤
-    if (pathname === '/home' && homeRef.current) {
-      setTimeout(() => scrollToMarker(homeRef), 100);
-    } else if (pathname === '/apps' && appsRef.current) {
-      setTimeout(() => scrollToMarker(appsRef), 100);
-    } else if (pathname === '/comments' && commentRef.current) {
-      setTimeout(() => scrollToMarker(commentRef), 100);
+    // pathname 변경 시 해당 스크롤 진행도로 이동
+    if (pathname === '/home') {
+      setTimeout(() => scrollToProgress(0), 100);
+    } else if (pathname === '/apps') {
+      setTimeout(() => scrollToProgress(1.5), 100);
+    } else if (pathname === '/comments') {
+      setTimeout(() => scrollToProgress(3), 100);
     }
   }, [pathname, showContent, isAnimating]);
 
