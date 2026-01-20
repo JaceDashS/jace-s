@@ -2,6 +2,7 @@
  * 카드 앞면 컴포넌트
  */
 import { useState, useEffect, useRef } from 'react';
+import type { MouseEvent } from 'react';
 import { PROJECTS_PER_PAGE } from '../../constants/gridConstants';
 import type { Language } from '../../types/mainContent';
 import type { App } from '../../types/app';
@@ -143,6 +144,7 @@ export default function CardFront({
   });
   const [buttonFontSize, setButtonFontSize] = useState(`${initialButtonFontMax}rem`);
   const [iconSize, setIconSize] = useState(`${initialIconSizeMax}rem`);
+  const [emailCopied, setEmailCopied] = useState(false);
 
   // 카드 너비에 따라 폰트 크기 및 버튼 크기 조정
   useEffect(() => {
@@ -491,28 +493,61 @@ export default function CardFront({
             </a>
           )}
           {/* Email */}
-          {process.env.NEXT_PUBLIC_EMAIL && (
-            <a
-              href={`mailto:${process.env.NEXT_PUBLIC_EMAIL}`}
-              className={`${styles.buttonBase} ${styles.buttonFilled} ${styles.buttonSocial}`}
-              style={{
-                opacity: greetingFade,
-                pointerEvents: isInMarker1(scrollProgress) ? 'auto' : 'none',
-                transition: 'opacity 0.3s ease-in-out',
-                paddingLeft: `${buttonPadding.px * 0.25}rem`,
-                paddingRight: `${buttonPadding.px * 0.25}rem`,
-                paddingTop: `${buttonPadding.py * 0.25}rem`,
-                paddingBottom: `${buttonPadding.py * 0.25}rem`,
-                fontSize: buttonFontSize,
-                textDecoration: 'none',
-              }}
-            >
-              <svg className={styles.icon} style={{ width: iconSize, height: iconSize }} fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-              </svg>
-              <span className={styles.buttonText}>Email</span>
-            </a>
-          )}
+          {process.env.NEXT_PUBLIC_EMAIL && (() => {
+            const email = process.env.NEXT_PUBLIC_EMAIL;
+            
+            const handleEmailClick = async (e: MouseEvent<HTMLAnchorElement>) => {
+              e.preventDefault();
+              
+              try {
+                // 클립보드에 이메일 주소 복사
+                await navigator.clipboard.writeText(email);
+                setEmailCopied(true);
+                
+                // 2초 후 복사 상태 해제
+                setTimeout(() => {
+                  setEmailCopied(false);
+                }, 2000);
+                
+                // mailto 링크도 시도 (백업)
+                const subject = encodeURIComponent('Contact from Portfolio');
+                const body = encodeURIComponent('Hello,\n\n');
+                const mailtoLink = `mailto:${email}?subject=${subject}&body=${body}`;
+                window.location.href = mailtoLink;
+              } catch {
+                // 클립보드 복사 실패 시 mailto 링크만 시도
+                const subject = encodeURIComponent('Contact from Portfolio');
+                const body = encodeURIComponent('Hello,\n\n');
+                const mailtoLink = `mailto:${email}?subject=${subject}&body=${body}`;
+                window.location.href = mailtoLink;
+              }
+            };
+            
+            return (
+              <a
+                href={`mailto:${email}`}
+                onClick={handleEmailClick}
+                className={`${styles.buttonBase} ${styles.buttonFilled} ${styles.buttonSocial}`}
+                style={{
+                  opacity: greetingFade,
+                  pointerEvents: isInMarker1(scrollProgress) ? 'auto' : 'none',
+                  transition: 'opacity 0.3s ease-in-out',
+                  paddingLeft: `${buttonPadding.px * 0.25}rem`,
+                  paddingRight: `${buttonPadding.px * 0.25}rem`,
+                  paddingTop: `${buttonPadding.py * 0.25}rem`,
+                  paddingBottom: `${buttonPadding.py * 0.25}rem`,
+                  fontSize: buttonFontSize,
+                  textDecoration: 'none',
+                }}
+                title={emailCopied ? 'Email copied to clipboard!' : `Email: ${email}`}
+              >
+                <svg className={styles.icon} style={{ width: iconSize, height: iconSize }} fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                </svg>
+                <span className={styles.buttonText}>{emailCopied ? 'Copied!' : 'Email'}</span>
+              </a>
+            );
+          })()}
         </div>
         {/* 자격증 */}
         <button
