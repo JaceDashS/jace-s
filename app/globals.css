@@ -1,53 +1,33 @@
 @import "tailwindcss";
 
-/* 스크롤바 숨기기 - 모든 브라우저 지원 (강력한 버전) */
-* {
-  scrollbar-width: none !important; /* Firefox */
-  -ms-overflow-style: none !important; /* IE and Edge */
+/* 스크롤바 숨기기 - 모든 브라우저 지원 */
+/* 높은 specificity를 사용하여 !important 없이 적용 */
+html,
+html *,
+body,
+body *,
+:root,
+:root * {
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE and Edge */
 }
 
-*::-webkit-scrollbar {
-  display: none !important; /* Chrome, Safari, Opera */
-  width: 0 !important;
-  height: 0 !important;
-}
-
-html {
-  scrollbar-width: none !important;
-  -ms-overflow-style: none !important;
-}
-
-html::-webkit-scrollbar {
-  display: none !important;
-  width: 0 !important;
-  height: 0 !important;
+html::-webkit-scrollbar,
+html *::-webkit-scrollbar,
+body::-webkit-scrollbar,
+body *::-webkit-scrollbar,
+:root::-webkit-scrollbar,
+:root *::-webkit-scrollbar {
+  display: none; /* Chrome, Safari, Opera */
+  width: 0;
+  height: 0;
 }
 
 body {
-  scrollbar-width: none !important;
-  -ms-overflow-style: none !important;
   overflow-x: hidden;
   background-color: rgb(15 23 42); /* WelcomeScreen과 동일한 배경색 */
   margin: 0;
   padding: 0;
-}
-
-body::-webkit-scrollbar {
-  display: none !important;
-  width: 0 !important;
-  height: 0 !important;
-}
-
-/* 문서 루트 요소에도 적용 */
-:root {
-  scrollbar-width: none !important;
-  -ms-overflow-style: none !important;
-}
-
-:root::-webkit-scrollbar {
-  display: none !important;
-  width: 0 !important;
-  height: 0 !important;
 }
 
 @keyframes home-card-shake {
@@ -81,7 +61,7 @@ body::-webkit-scrollbar {
   }
 
   body > * {
-    display: none !important;
+    display: none;
   }
 
   body::before {

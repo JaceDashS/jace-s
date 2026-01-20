@@ -185,25 +185,26 @@
   z-index: 0;
   padding-right: 8px;
   box-sizing: border-box;
-  scrollbar-width: auto !important;
-  scrollbar-color: rgba(255, 255, 255, 0.35) rgba(255, 255, 255, 0.08) !important;
+  /* CSS Module의 해시된 클래스명이 높은 specificity를 제공하므로 !important 불필요 */
+  scrollbar-width: auto;
+  scrollbar-color: rgba(255, 255, 255, 0.35) rgba(255, 255, 255, 0.08);
   scrollbar-gutter: stable;
-  -ms-overflow-style: auto !important;
+  -ms-overflow-style: auto;
 }
 
 .commentsList::-webkit-scrollbar {
-  display: block !important;
-  width: 8px !important;
-  height: 8px !important;
+  display: block;
+  width: 8px;
+  height: 8px;
 }
 
 .commentsList::-webkit-scrollbar-track {
-  background: rgba(255, 255, 255, 0.08) !important;
+  background: rgba(255, 255, 255, 0.08);
   border-radius: 999px;
 }
 
 .commentsList::-webkit-scrollbar-thumb {
-  background-color: rgba(255, 255, 255, 0.35) !important;
+  background-color: rgba(255, 255, 255, 0.35);
   border-radius: 999px;
 }
 
