@@ -11,14 +11,14 @@ permissions:
   issues: write
 
 env:
-  AWS_REGION: ap-northeast-2  # 서울 리전 (필요시 변경)
+  AWS_REGION: us-east-1
   ECR_PUBLIC_REGISTRY: public.ecr.aws
-  ECR_PUBLIC_ALIAS: ${{ secrets.ECR_PUBLIC_ALIAS }}  # 예: s7c1l0s2
+  ECR_PUBLIC_ALIAS: ${{ secrets.ECR_PUBLIC_ALIAS }}
   ECR_REPOSITORY: jace-s
-  ECS_CLUSTER: your-cluster-name  # 실제 클러스터 이름으로 변경
-  ECS_SERVICE: your-service-name  # 실제 서비스 이름으로 변경
-  ECS_TASK_DEFINITION: your-task-definition-name  # 실제 Task Definition 이름으로 변경
-  CONTAINER_NAME: jace-s  # Task Definition의 컨테이너 이름
+  ECS_CLUSTER: t3nano-t3anano-spot-amazonLinux2023
+  ECS_SERVICE: jace-s-task-definition-service-uzi5tzdo
+  ECS_TASK_DEFINITION: jace-s-task-definition
+  CONTAINER_NAME: jace-s
 
 jobs:
   deploy:
@@ -136,7 +136,6 @@ jobs:
           docker build \
             --build-arg NODE_ENV=production \
             --build-arg APP_VERSION=${{ steps.package-version.outputs.version }} \
-            --build-arg NEXT_PUBLIC_BASE_URL=${{ secrets.NEXT_PUBLIC_BASE_URL }} \
             -t $ECR_REGISTRY/${{ env.ECR_REPOSITORY }}:$IMAGE_TAG \
             -t $ECR_REGISTRY/${{ env.ECR_REPOSITORY }}:latest \
             . || {
