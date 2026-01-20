@@ -2,13 +2,13 @@
 
 import { useCallback, useState, useEffect, useRef } from 'react';
 import type { CSSProperties } from 'react';
-import { usePathname, useRouter } from 'next/navigation';
+import { usePathname } from 'next/navigation';
 import WelcomeScreen from './WelcomeScreen';
 
 // 상수 import
 import { CARD_SCALE, CARD_Z_INDEX } from '../constants/cardConstants';
 import { HOVER_ANIMATION_SPEED_MS, HOVER_Z_INDEX_CHANGE_DELAY_MS } from '../constants/hoverConstants';
-import { MARKER_1, MARKER_2, MARKER_4, isInMarker1, isInMarker4 } from '../constants/markerConstants';
+import { isInMarker1 } from '../constants/markerConstants';
 import type { Language } from '../types/mainContent';
 import { useFadeAnimation } from '../hooks/useFadeAnimation';
 import { useCardState } from '../hooks/useCardState';
@@ -187,7 +187,6 @@ export default function MainContent() {
   const marker4Ref = useRef<HTMLDivElement>(null);
   
   const pathname = usePathname();
-  const router = useRouter();
 
   // 모든 로딩 완료 상태
   const allResourcesLoaded = appsLoaded && certificationsLoaded && homePhotosLoaded;
@@ -681,13 +680,19 @@ export default function MainContent() {
               {/* 1번 마커 */}
               <div className="flex flex-col items-center gap-2">
                 <button
-                  onClick={() => router.push(MARKER_1.PATH)}
-                  className={`w-3 h-3 rounded-full transition-all duration-300 cursor-pointer ${
+                  onClick={() => {
+                    const windowHeight = window.innerHeight;
+                    window.scrollTo({
+                      top: windowHeight * 0,
+                      behavior: 'smooth',
+                    });
+                  }}
+                  className={`h-3 rounded-full transition-all duration-300 cursor-pointer ${
                     scrollProgress === 0
-                      ? 'bg-purple-600 scale-125'
+                      ? 'bg-purple-600 w-9'
                       : scrollProgress > 0
-                      ? 'bg-purple-400'
-                      : 'bg-slate-600'
+                      ? 'bg-purple-400 w-3'
+                      : 'bg-slate-600 w-3'
                   }`}
                   aria-label="Home"
                 />
@@ -699,7 +704,7 @@ export default function MainContent() {
                 <div
                   className="absolute top-0 left-0 w-full bg-purple-600 transition-all duration-300 ease-out rounded-full"
                   style={{
-                    height: scrollProgress >= MARKER_1.END ? '100%' : `${(scrollProgress / MARKER_1.END) * 100}%`,
+                    height: scrollProgress >= 1 ? '100%' : `${(scrollProgress / 1) * 100}%`,
                   }}
                 />
               </div>
@@ -707,13 +712,19 @@ export default function MainContent() {
               {/* 2번 마커 */}
               <div className="flex flex-col items-center gap-2">
                 <button
-                  onClick={() => router.push(MARKER_2.PATH)}
-                  className={`w-3 h-3 rounded-full transition-all duration-300 cursor-pointer ${
+                  onClick={() => {
+                    const windowHeight = window.innerHeight;
+                    window.scrollTo({
+                      top: windowHeight * 1.5,
+                      behavior: 'smooth',
+                    });
+                  }}
+                  className={`h-3 rounded-full transition-all duration-300 cursor-pointer ${
                     scrollProgress >= 1 && scrollProgress < 2
-                      ? 'bg-purple-600 scale-125'
+                      ? 'bg-purple-600 w-9'
                       : scrollProgress >= 2
-                      ? 'bg-purple-400'
-                      : 'bg-slate-600'
+                      ? 'bg-purple-400 w-3'
+                      : 'bg-slate-600 w-3'
                   }`}
                   aria-label="Apps"
                 />
@@ -725,10 +736,10 @@ export default function MainContent() {
                 <div
                   className="absolute top-0 left-0 w-full bg-purple-600 transition-all duration-300 ease-out rounded-full"
                   style={{
-                    height: isInMarker4(scrollProgress) 
-                      ? '100%' 
-                      : scrollProgress >= MARKER_2.END 
-                      ? `${((scrollProgress - MARKER_2.END) / (MARKER_4.START - MARKER_2.END)) * 100}%` 
+                    height: scrollProgress >= 3
+                      ? '100%'
+                      : scrollProgress >= 2
+                      ? `${((scrollProgress - 2) / (3 - 2)) * 100}%`
                       : '0%',
                   }}
                 />
@@ -737,13 +748,17 @@ export default function MainContent() {
               {/* 4번 마커 */}
               <div className="flex flex-col items-center gap-2">
                 <button
-                  onClick={() => router.push(MARKER_4.PATH)}
-                  className={`w-3 h-3 rounded-full transition-all duration-300 cursor-pointer ${
+                  onClick={() => {
+                    const windowHeight = window.innerHeight;
+                    window.scrollTo({
+                      top: windowHeight * 3,
+                      behavior: 'smooth',
+                    });
+                  }}
+                  className={`h-3 rounded-full transition-all duration-300 cursor-pointer ${
                     scrollProgress >= 3
-                      ? scrollProgress === 3
-                      ? 'bg-purple-600 scale-125'
-                      : 'bg-purple-400'
-                      : 'bg-slate-600'
+                      ? 'bg-purple-600 w-9'
+                      : 'bg-slate-600 w-3'
                   }`}
                   aria-label="Comment"
                 />
