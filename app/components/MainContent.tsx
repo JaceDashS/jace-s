@@ -34,6 +34,8 @@ interface AppsApiResponse {
   apps?: AppApiItem[];
 }
 
+type ProfileLinks = Record<string, string>;
+
 const shouldLog = process.env.NEXT_PUBLIC_DEBUG_LOGS === 'true';
 
 export default function MainContent() {
@@ -72,6 +74,7 @@ export default function MainContent() {
   const [currentProjectPage, setCurrentProjectPage] = useState(1); // 프로젝트 페이지네이션 현재 페이지
   const [profileName, setProfileName] = useState<string>(''); // 프로필 이름
   const [profileDescription, setProfileDescription] = useState<string>(''); // 프로필 설명
+  const [profileLinks, setProfileLinks] = useState<ProfileLinks | null>(null);
   const [apps, setApps] = useState<App[]>([]);
   const [isHomeCardShaking, setIsHomeCardShaking] = useState(false);
   const homeCardShakeTimeoutRef = useRef<number | null>(null);
@@ -508,6 +511,7 @@ export default function MainContent() {
         if (currentLangData) {
           setProfileName(currentLangData.name);
           setProfileDescription(currentLangData.description || '');
+          setProfileLinks(currentLangData.links || null);
         }
       } catch {
         // Profile overview 로드 실패 시 조용히 처리
@@ -797,9 +801,10 @@ export default function MainContent() {
                   setIsCardFlipped={setIsCardFlipped}
                   profileName={profileName}
                   profileDescription={profileDescription}
+                  profileLinks={profileLinks || undefined}
                   greetingText={greetingText[language]}
                   nameSuffix={nameSuffix[language]}
-                  disablePointerEvents={scrollProgress >= 2}
+                  disablePointerEvents={(scrollProgress > 0 && scrollProgress < 1) || scrollProgress >= 2}
                 />
                 <CardBack
                   scrollProgress={scrollProgress}

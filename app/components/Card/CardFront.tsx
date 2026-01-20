@@ -1,13 +1,12 @@
 /**
  * 카드 앞면 컴포넌트
  */
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import type { MouseEvent } from 'react';
 import { PROJECTS_PER_PAGE } from '../../constants/gridConstants';
 import type { Language } from '../../types/mainContent';
 import type { App } from '../../types/app';
 import { BUTTON_MAX_FACTOR, CARD_WIDTH as BUTTON_CARD_WIDTH, BUTTON_PADDING, BUTTON_FONT, ICON_SIZE } from '../../constants/buttonConstants';
-import { isInMarker1 } from '../../constants/markerConstants';
 import AppItem from './AppItem';
 import styles from './CardFront.module.css';
 
@@ -63,6 +62,7 @@ interface CardFrontProps {
   setIsCardFlipped: (flipped: boolean | ((prev: boolean) => boolean)) => void;
   profileName: string;
   profileDescription: string;
+  profileLinks?: Record<string, string>;
   greetingText: string;
   nameSuffix: string;
   disablePointerEvents?: boolean;
@@ -81,6 +81,7 @@ export default function CardFront({
   setIsCardFlipped,
   profileName,
   profileDescription,
+  profileLinks,
   greetingText,
   nameSuffix,
   disablePointerEvents = false,
@@ -104,6 +105,7 @@ export default function CardFront({
   const containerRef = useRef<HTMLDivElement>(null);
   const fadeContainerRef = useRef<HTMLDivElement>(null);
   const descriptionRef = useRef<HTMLParagraphElement>(null);
+  const isHomeLinksActive = scrollProgress === 0;
   
   // 언어별 페이지네이션 텍스트
   const paginationText = {
@@ -145,6 +147,56 @@ export default function CardFront({
   const [buttonFontSize, setButtonFontSize] = useState(`${initialButtonFontMax}rem`);
   const [iconSize, setIconSize] = useState(`${initialIconSizeMax}rem`);
   const [emailCopied, setEmailCopied] = useState(false);
+
+  const linkedDescription = useMemo(() => {
+    if (!profileDescription) return null;
+
+    const linkEntries = [
+      {
+        key: 'composition',
+        text: profileLinks?.composition,
+        url: process.env.NEXT_PUBLIC_COMPOSITION_URL,
+      },
+      {
+        key: 'guitar',
+        text: profileLinks?.guitar,
+        url: process.env.NEXT_PUBLIC_GUITAR_URL,
+      },
+    ].filter((entry) => entry.text && entry.url) as Array<{
+      key: string;
+      text: string;
+      url: string;
+    }>;
+
+    if (linkEntries.length === 0) return profileDescription;
+
+    const escapeRegex = (value: string) =>
+      value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+    const pattern = linkEntries.map((entry) => escapeRegex(entry.text)).join('|');
+    if (!pattern) return profileDescription;
+
+    const regex = new RegExp(`(${pattern})`, 'g');
+    const parts = profileDescription.split(regex);
+
+    return parts.map((part, index) => {
+      const linkEntry = linkEntries.find((entry) => entry.text === part);
+      if (!linkEntry) {
+        return part;
+      }
+      return (
+        <a
+          key={`${linkEntry.key}-${index}`}
+          href={linkEntry.url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className={styles.descriptionLink}
+        >
+          {part}
+        </a>
+      );
+    });
+  }, [profileDescription, profileLinks]);
 
   // 카드 너비에 따라 폰트 크기 및 버튼 크기 조정
   useEffect(() => {
@@ -359,9 +411,10 @@ export default function CardFront({
                 style={{ 
                   fontFamily,
                   fontSize: descriptionFontSize,
+                  pointerEvents: isHomeLinksActive ? 'auto' : 'none',
                 }}
               >
-                {profileDescription}
+                {linkedDescription}
               </p>
             </div>
           )}
@@ -371,7 +424,7 @@ export default function CardFront({
           className={styles.appsContainer}
           style={{
             opacity: appsFade,
-            pointerEvents: (scrollProgress >= 1 && scrollProgress < 2) ? 'auto' : (disablePointerEvents ? 'none' : 'auto'),
+            pointerEvents: scrollProgress >= 1 && scrollProgress < 2 ? 'auto' : 'none',
           }}
         >
           <h2 className={styles.sectionTitle}>Apps</h2>
@@ -451,7 +504,7 @@ export default function CardFront({
               className={`${styles.buttonBase} ${styles.buttonFilled} ${styles.buttonSocial}`}
               style={{
                 opacity: greetingFade,
-                pointerEvents: isInMarker1(scrollProgress) ? 'auto' : 'none',
+                pointerEvents: isHomeLinksActive ? 'auto' : 'none',
                 transition: 'opacity 0.3s ease-in-out',
                 paddingLeft: `${buttonPadding.px * 0.25}rem`,
                 paddingRight: `${buttonPadding.px * 0.25}rem`,
@@ -476,7 +529,7 @@ export default function CardFront({
               className={`${styles.buttonBase} ${styles.buttonFilled} ${styles.buttonSocial}`}
               style={{
                 opacity: greetingFade,
-                pointerEvents: isInMarker1(scrollProgress) ? 'auto' : 'none',
+                pointerEvents: isHomeLinksActive ? 'auto' : 'none',
                 transition: 'opacity 0.3s ease-in-out',
                 paddingLeft: `${buttonPadding.px * 0.25}rem`,
                 paddingRight: `${buttonPadding.px * 0.25}rem`,
@@ -530,7 +583,7 @@ export default function CardFront({
                 className={`${styles.buttonBase} ${styles.buttonFilled} ${styles.buttonSocial}`}
                 style={{
                   opacity: greetingFade,
-                  pointerEvents: isInMarker1(scrollProgress) ? 'auto' : 'none',
+                  pointerEvents: isHomeLinksActive ? 'auto' : 'none',
                   transition: 'opacity 0.3s ease-in-out',
                   paddingLeft: `${buttonPadding.px * 0.25}rem`,
                   paddingRight: `${buttonPadding.px * 0.25}rem`,
@@ -564,7 +617,7 @@ export default function CardFront({
           className={`${styles.buttonBase} ${styles.buttonOutline}`}
           style={{
             opacity: greetingFade,
-            pointerEvents: isInMarker1(scrollProgress) ? 'auto' : 'none',
+            pointerEvents: isHomeLinksActive ? 'auto' : 'none',
             transition: 'opacity 0.3s ease-in-out',
             paddingLeft: `${buttonPadding.px * 0.25}rem`,
             paddingRight: `${buttonPadding.px * 0.25}rem`,

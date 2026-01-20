@@ -69,6 +69,17 @@
   width: 100%;
 }
 
+.descriptionLink {
+  color: rgb(216 180 254);
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 3px;
+}
+
+.descriptionLink:hover {
+  color: rgb(233 213 255);
+}
+
 .appsContainer {
   display: flex;
   flex-direction: column;
