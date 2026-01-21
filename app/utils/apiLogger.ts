@@ -12,6 +12,7 @@ export interface ApiLogContext {
   xOrigin: string | null;
   ip: string;
   userAgent: string | null;
+  requestBody?: unknown;
   statusCode?: number;
   error?: string;
   duration?: number;
@@ -54,7 +55,7 @@ export function logApiRequest(request: NextRequest, path: string): ApiLogContext
  * API 요청 성공 로그
  */
 export function logApiSuccess(context: ApiLogContext, statusCode: number, duration: number): void {
-  logInfo('[API] Success:', {
+  const logData: Record<string, unknown> = {
     method: context.method,
     path: context.path,
     origin: context.origin,
@@ -64,7 +65,13 @@ export function logApiSuccess(context: ApiLogContext, statusCode: number, durati
     statusCode,
     duration: `${duration}ms`,
     timestamp: new Date().toISOString(),
-  });
+  };
+
+  if (context.requestBody !== undefined) {
+    logData.body = context.requestBody;
+  }
+
+  logInfo('[API] Success:', logData);
 }
 
 /**
@@ -130,6 +137,25 @@ export async function withApiLogging(
 ): Promise<NextResponse> {
   const startTime = Date.now();
   const context = logApiRequest(request, path);
+
+  // POST, PUT, PATCH 요청의 경우 body를 미리 읽어서 로그에 포함
+  const method = request.method.toUpperCase();
+  if (['POST', 'PUT', 'PATCH'].includes(method) && request.body) {
+    try {
+      const clonedRequest = request.clone();
+      const contentType = request.headers.get('content-type') || '';
+      if (contentType.includes('application/json')) {
+        context.requestBody = await clonedRequest.json();
+      } else {
+        const text = await clonedRequest.text();
+        // body가 너무 길면 잘라서 표시 (10KB 제한)
+        context.requestBody = text.length > 10240 ? `${text.slice(0, 10240)}... (truncated)` : text;
+      }
+    } catch {
+      // body 읽기 실패는 무시 (로그에만 포함)
+      context.requestBody = '(failed to parse body)';
+    }
+  }
 
   try {
     const response = await handler(context);

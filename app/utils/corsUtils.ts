@@ -26,9 +26,9 @@ function getAllowedOriginsFromEnv(): {
   const origins = new Set<string>();
   const envEntries: Array<{ key: string; urls: string[]; origins: string[] }> = [];
   
-  // CORS_MODE 확인
+  // CORS_MODE 확인 또는 개발 환경 자동 감지
   const corsMode = process.env.CORS_MODE || null;
-  const isDevMode = corsMode === 'dev';
+  const isDevMode = corsMode === 'dev' || process.env.NODE_ENV === 'development';
   
   // 1. EXTERNAL_SERVICE_*_SERVER_URL 패턴 찾기
   const prefix = 'EXTERNAL_SERVICE_';
@@ -134,17 +134,25 @@ export function logCorsStartup() {
   logInfo('[CORS] CORS Allowed Origins (Server Startup)');
   logInfo('[CORS] ========================================');
   
+  // 개발 환경 체크 (NODE_ENV === 'development')
+  const isDevelopment = process.env.NODE_ENV === 'development';
+  
+  if (isDevelopment) {
+    logInfo('[CORS] 🚀 DEVELOPMENT MODE: All origins are allowed');
+    logInfo('[CORS]');
+  }
+  
   // CORS_MODE 표시
   if (corsMode) {
     logInfo(`[CORS] CORS_MODE: ${corsMode}`);
-    if (isDevMode) {
+    if (isDevMode && !isDevelopment) {
       logInfo('[CORS] ⚠️  DEV MODE: All origins are allowed');
     }
     logInfo('[CORS]');
   }
   
   if (envEntries.length === 0) {
-    if (isDevMode) {
+    if (isDevelopment || isDevMode) {
       logInfo('[CORS] No specific origin restrictions (DEV MODE)');
       logInfo('[CORS] All origins will be allowed');
     } else {
@@ -162,8 +170,11 @@ export function logCorsStartup() {
     logInfo('[CORS] Total Allowed Origins:', { origins: Array.from(origins) });
     logInfo('[CORS] Count:', { count: origins.length });
     
-    if (isDevMode) {
-      logInfo('[CORS] ⚠️  Note: DEV MODE is enabled, so ALL origins are allowed');
+    if (isDevelopment) {
+      logInfo('[CORS] ⚠️  Note: DEVELOPMENT MODE is enabled, so ALL origins are allowed');
+      logInfo('[CORS]    (The above list is informational only)');
+    } else if (isDevMode) {
+      logInfo('[CORS] ⚠️  Note: DEV MODE (CORS_MODE=dev) is enabled, so ALL origins are allowed');
       logInfo('[CORS]    (The above list is informational only)');
     }
   }

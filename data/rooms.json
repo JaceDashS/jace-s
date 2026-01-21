@@ -1,0 +1,24 @@
+[
+  {
+    "roomCode": "8657",
+    "hostId": "e39ee815-9ec8-4f08-8c12-954e3d048020",
+    "createdAt": 1768957617207,
+    "expiresAt": 1768979217207,
+    "allowJoin": true,
+    "allowJoinExpiresAt": 1768958409765,
+    "participants": [],
+    "kickedParticipants": [],
+    "maxParticipants": 4
+  },
+  {
+    "roomCode": "4442",
+    "hostId": "430a4f8a-6699-4087-b032-dc1dc991d6be",
+    "createdAt": 1768960293341,
+    "expiresAt": 1768981893341,
+    "allowJoin": true,
+    "allowJoinExpiresAt": 1768960357075,
+    "participants": [],
+    "kickedParticipants": [],
+    "maxParticipants": 4
+  }
+]

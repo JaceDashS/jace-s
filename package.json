@@ -3,13 +3,19 @@
   "version": "0.2.2",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "tsx server.ts",
+    "dev:next": "next dev",
     "build": "next build",
     "build:dev": "cross-env NODE_ENV=development next build",
-    "start": "next start",
+    "start": "tsx server.ts",
+    "start:next": "next start",
     "lint": "eslint",
     "lint:check": "eslint",
     "type-check": "tsc --noEmit",
+    "test:phase1:api": "node scripts/test-phase1-api.mjs",
+    "test:phase1:websocket": "node scripts/test-phase1-websocket.mjs",
+    "test:phase1": "npm run test:phase1:api && npm run test:phase1:websocket",
+    "test:phase3": "node scripts/test-phase3.mjs",
     "clean": "if exist .next rmdir /s /q .next && if exist node_modules\\.cache rmdir /s /q node_modules\\.cache",
     "clean:unix": "rm -rf .next node_modules/.cache",
     "docker:build:prod": "node scripts/docker-build-with-env.mjs .env.production --target runner -t jace-s:latest .",
@@ -35,10 +41,13 @@
   },
   "dependencies": {
     "bcrypt": "^6.0.0",
+    "dotenv": "^17.2.3",
     "next": "16.1.1",
     "oracledb": "^6.4.0",
     "react": "19.2.3",
-    "react-dom": "19.2.3"
+    "react-dom": "19.2.3",
+    "uuid": "^13.0.0",
+    "ws": "^8.19.0"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.1.7",
@@ -47,12 +56,15 @@
     "@types/oracledb": "^6.4.0",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@types/uuid": "^10.0.0",
+    "@types/ws": "^8.18.1",
     "autoprefixer": "^10.4.21",
     "cross-env": "^7.0.3",
     "eslint": "^9",
     "eslint-config-next": "16.1.1",
     "postcss": "^8.5.3",
     "tailwindcss": "^4.1.7",
+    "tsx": "^4.21.0",
     "typescript": "^5"
   }
 }
