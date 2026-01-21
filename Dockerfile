@@ -99,6 +99,16 @@ COPY --from=builder /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
+# 커스텀 서버 실행을 위한 파일 복사
+# server.ts 및 필요한 의존성들
+COPY --from=builder --chown=nextjs:nodejs /app/server.ts ./
+COPY --from=builder --chown=nextjs:nodejs /app/app ./app
+COPY --from=builder --chown=nextjs:nodejs /app/node_modules ./node_modules
+COPY --from=builder --chown=nextjs:nodejs /app/package.json ./package.json
+
+# tsx 런타임 설치 (커스텀 서버 실행용)
+RUN npm install -g tsx
+
 # nginx 설정 복사
 COPY nginx/nginx.conf /etc/nginx/nginx.conf
 COPY nginx/default.conf /etc/nginx/conf.d/default.conf
@@ -109,7 +119,7 @@ ENV HOSTNAME="0.0.0.0"
 
 EXPOSE 80
 
-# supervisor 설정 생성 (nginx와 Next.js 동시 실행)
+# supervisor 설정 생성 (nginx와 커스텀 서버 동시 실행)
 RUN echo '[supervisord]' > /etc/supervisord.conf && \
     echo 'nodaemon=true' >> /etc/supervisord.conf && \
     echo 'user=root' >> /etc/supervisord.conf && \
@@ -124,7 +134,7 @@ RUN echo '[supervisord]' > /etc/supervisord.conf && \
     echo 'stdout_logfile=/var/log/nginx/access.log' >> /etc/supervisord.conf && \
     echo '' >> /etc/supervisord.conf && \
     echo '[program:nextjs]' >> /etc/supervisord.conf && \
-    echo 'command=/usr/local/bin/node server.js' >> /etc/supervisord.conf && \
+    echo 'command=/usr/local/bin/tsx server.ts' >> /etc/supervisord.conf && \
     echo 'directory=/app' >> /etc/supervisord.conf && \
     echo 'user=nextjs' >> /etc/supervisord.conf && \
     echo 'autostart=true' >> /etc/supervisord.conf && \
