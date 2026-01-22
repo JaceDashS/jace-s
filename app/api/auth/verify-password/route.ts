@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { setCorsHeaders, handleOptions } from '../../../utils/corsUtils';
 import { withApiLogging } from '../../../utils/apiLogger';
-import { comparePassword, hashPassword } from '../../../utils/passwordUtils';
+import { comparePassword } from '../../../utils/passwordUtils';
 
 // Route Segment Config - 환경변수에 의존하므로 동적 렌더링
 export const dynamic = 'force-dynamic';
@@ -63,26 +63,8 @@ export async function POST(request: NextRequest) {
       // 비밀번호 비교 (comment API와 동일한 PEPPER 사용)
       const isValid = await comparePassword(password.trim(), storedPasswordHash);
 
-      // TODO: 테스트 목적으로 추가된 디버깅 정보 - 검증 실패 시 제거 필요
-      let responseData: { valid: boolean; debug?: { storedHash: string; inputPassword: string; inputHash: string } };
-      if (!isValid) {
-        // 검증 실패 시 디버깅 정보 포함
-        const inputPassword = password.trim();
-        const inputHash = await hashPassword(inputPassword);
-        responseData = {
-          valid: false,
-          debug: {
-            storedHash: storedPasswordHash,
-            inputPassword: inputPassword,
-            inputHash: inputHash,
-          },
-        };
-      } else {
-        responseData = { valid: true };
-      }
-
       const response = NextResponse.json(
-        responseData,
+        { valid: isValid },
         { status: 200 }
       );
       return setCorsHeaders(request, response);
