@@ -5,30 +5,6 @@
 
 import type { Room } from '@/app/types/collaboration/room';
 import { generateRoomCode } from '@/app/utils/collaboration/roomCodeGenerator';
-import fs from 'fs';
-import path from 'path';
-
-type SerializedRoom = Omit<Room, 'kickedParticipants'> & {
-  kickedParticipants: Array<[string, number]>;
-};
-
-const ROOM_DATA_DIR = path.resolve(process.cwd(), 'data');
-const ROOM_DATA_FILE = path.join(ROOM_DATA_DIR, 'rooms.json');
-
-function serializeRoom(room: Room): SerializedRoom {
-  return {
-    ...room,
-    kickedParticipants: Array.from(room.kickedParticipants.entries()),
-  };
-}
-
-function deserializeRoom(room: SerializedRoom): Room {
-  return {
-    ...room,
-    kickedParticipants: new Map(room.kickedParticipants),
-  };
-}
-
 /**
  * 룸 저장소 (인메모리)
  */
@@ -36,64 +12,24 @@ class RoomStore {
   private rooms = new Map<string, Room>();
 
   get(roomCode: string): Room | undefined {
-    this.loadFromDisk();
     return this.rooms.get(roomCode);
   }
 
   set(roomCode: string, room: Room): void {
-    this.loadFromDisk();
     this.rooms.set(roomCode, room);
-    this.saveToDisk();
   }
 
   delete(roomCode: string): boolean {
-    this.loadFromDisk();
     const deleted = this.rooms.delete(roomCode);
-    if (deleted) {
-      this.saveToDisk();
-    }
     return deleted;
   }
 
   getAll(): Room[] {
-    this.loadFromDisk();
     return Array.from(this.rooms.values());
   }
 
   getAllRoomCodes(): Set<string> {
-    this.loadFromDisk();
     return new Set(this.rooms.keys());
-  }
-
-  private loadFromDisk(): void {
-    try {
-      if (!fs.existsSync(ROOM_DATA_FILE)) {
-        this.rooms.clear();
-        return;
-      }
-      const raw = fs.readFileSync(ROOM_DATA_FILE, 'utf-8');
-      if (!raw.trim()) {
-        this.rooms.clear();
-        return;
-      }
-      const parsed = JSON.parse(raw) as SerializedRoom[];
-      this.rooms = new Map(parsed.map((room) => [room.roomCode, deserializeRoom(room)]));
-    } catch (error) {
-      console.error('[Online DAW] [RoomStore] Failed to load rooms:', error);
-      this.rooms.clear();
-    }
-  }
-
-  private saveToDisk(): void {
-    try {
-      if (!fs.existsSync(ROOM_DATA_DIR)) {
-        fs.mkdirSync(ROOM_DATA_DIR, { recursive: true });
-      }
-      const data = Array.from(this.rooms.values()).map(serializeRoom);
-      fs.writeFileSync(ROOM_DATA_FILE, JSON.stringify(data, null, 2), 'utf-8');
-    } catch (error) {
-      console.error('[Online DAW] [RoomStore] Failed to save rooms:', error);
-    }
   }
 }
 
