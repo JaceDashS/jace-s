@@ -40,9 +40,7 @@ declare global {
 
 // 개발 모드에서는 HMR로 인해 모듈이 재로드될 수 있으므로 전역 변수 사용
 const roomStore = globalThis.__roomStore || new RoomStore();
-if (process.env.NODE_ENV === 'development') {
-  globalThis.__roomStore = roomStore;
-}
+globalThis.__roomStore = roomStore;
 
 const MAX_ROOM_TTL_MS = 6 * 60 * 60 * 1000; // 6시간
 
@@ -331,9 +329,7 @@ declare global {
 
 // 개발 모드에서는 HMR로 인해 모듈이 재로드될 수 있으므로 전역 변수 사용
 const roomService = globalThis.__roomService || new RoomService();
-if (process.env.NODE_ENV === 'development') {
-  globalThis.__roomService = roomService;
-}
+globalThis.__roomService = roomService;
 
 export { roomService };
 
