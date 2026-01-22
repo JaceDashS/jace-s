@@ -1,6 +1,7 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { readFileSync } from 'fs';
 import { join } from 'path';
+import { withApiLogging } from '../utils/apiLogger';
 
 // Route Segment Config
 export const dynamic = 'force-dynamic';
@@ -50,32 +51,34 @@ function getPackageVersion(): string {
  *   uptime: number
  * }
  */
-export async function GET() {
-  const isDev = process.env.CORS_MODE === 'dev';
-  const nodeEnv = process.env.NODE_ENV || 'development';
-  
-  // 환경 변수에서 빌드 시 주입된 버전 (우선순위 높음)
-  const buildVersion = process.env.APP_VERSION || process.env.VERSION || 'unknown';
-  
-  // package.json에서 읽은 버전 (fallback)
-  const packageVersion = getPackageVersion();
-  
-  // 최종 버전 결정: 빌드 버전이 있으면 사용, 없으면 package.json 버전
-  const version = buildVersion !== 'unknown' ? buildVersion : packageVersion;
-  
-  // 서버 시작 시간 (process.uptime() 사용)
-  const uptime = Math.floor(process.uptime());
-  
-  return NextResponse.json({
-    status: 'OK',
-    version: version,
-    buildVersion: buildVersion,
-    packageVersion: packageVersion,
-    mode: isDev ? 'dev' : 'production',
-    nodeEnv: nodeEnv,
-    timestamp: new Date().toISOString(),
-    uptime: uptime, // 초 단위
-    uptimeFormatted: formatUptime(uptime),
+export async function GET(request: NextRequest) {
+  return withApiLogging(request, '/health', async () => {
+    const isDev = process.env.CORS_MODE === 'dev';
+    const nodeEnv = process.env.NODE_ENV || 'development';
+    
+    // 환경 변수에서 빌드 시 주입된 버전 (우선순위 높음)
+    const buildVersion = process.env.APP_VERSION || process.env.VERSION || 'unknown';
+    
+    // package.json에서 읽은 버전 (fallback)
+    const packageVersion = getPackageVersion();
+    
+    // 최종 버전 결정: 빌드 버전이 있으면 사용, 없으면 package.json 버전
+    const version = buildVersion !== 'unknown' ? buildVersion : packageVersion;
+    
+    // 서버 시작 시간 (process.uptime() 사용)
+    const uptime = Math.floor(process.uptime());
+    
+    return NextResponse.json({
+      status: 'OK',
+      version: version,
+      buildVersion: buildVersion,
+      packageVersion: packageVersion,
+      mode: isDev ? 'dev' : 'production',
+      nodeEnv: nodeEnv,
+      timestamp: new Date().toISOString(),
+      uptime: uptime, // 초 단위
+      uptimeFormatted: formatUptime(uptime),
+    });
   });
 }
 

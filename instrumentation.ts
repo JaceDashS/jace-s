@@ -9,15 +9,14 @@ export async function register() {
     const { logCorsStartup } = await import('./app/utils/corsOrigins');
     logCorsStartup();
     
-    // LOG_VERBOSE가 true일 때만 환경 변수 로그 출력 (ECS 로그에서 확인 가능)
-    const { isVerboseLoggingEnabled } = await import('./app/utils/logging');
-    if (isVerboseLoggingEnabled()) {
-      console.log('=== Environment Variables (Build-time) ===');
-      console.log('NEXT_PUBLIC_ASSETS_URL:', process.env.NEXT_PUBLIC_ASSETS_URL || '(not set)');
-      console.log('NEXT_PUBLIC_INSTAGRAM_URL:', process.env.NEXT_PUBLIC_INSTAGRAM_URL || '(not set)');
-      console.log('NEXT_PUBLIC_GITHUB_URL:', process.env.NEXT_PUBLIC_GITHUB_URL || '(not set)');
-      console.log('NEXT_PUBLIC_EMAIL:', process.env.NEXT_PUBLIC_EMAIL || '(not set)');
-    }
+    // LOG_LEVEL=debug일 때만 환경 변수 로그 출력 (ECS 로그에서 확인 가능)
+    const { logDebug } = await import('./app/utils/logging');
+    logDebug('=== Environment Variables (Build-time) ===', {
+      NEXT_PUBLIC_ASSETS_URL: process.env.NEXT_PUBLIC_ASSETS_URL || '(not set)',
+      NEXT_PUBLIC_INSTAGRAM_URL: process.env.NEXT_PUBLIC_INSTAGRAM_URL || '(not set)',
+      NEXT_PUBLIC_GITHUB_URL: process.env.NEXT_PUBLIC_GITHUB_URL || '(not set)',
+      NEXT_PUBLIC_EMAIL: process.env.NEXT_PUBLIC_EMAIL || '(not set)',
+    });
   }
 }
 

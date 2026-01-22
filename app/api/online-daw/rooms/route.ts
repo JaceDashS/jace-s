@@ -7,13 +7,15 @@ import { roomService } from '@/app/services/collaboration/roomService';
 import { signalingService } from '@/app/services/collaboration/signalingService';
 import type { CreateRoomRequest } from '@/app/types/collaboration/room';
 import { createErrorResponse, logError, ErrorCode, createValidationError } from '@/app/utils/collaboration/errorHandler';
+import { withApiLogging } from '@/app/utils/apiLogger';
 
 /**
  * GET /api/online-daw/rooms
  * 모든 룸 정보 조회 (디버깅/모니터링용)
  */
-export async function GET() {
-  try {
+export async function GET(request: NextRequest) {
+  return withApiLogging(request, '/api/online-daw/rooms', async () => {
+    try {
     const rooms = roomService.getAllRooms();
     const now = Date.now();
     
@@ -46,21 +48,22 @@ export async function GET() {
       };
     });
     
-    return NextResponse.json({
-      success: true,
-      totalRooms: rooms.length,
-      rooms: roomsInfo,
-      timestamp: now
-    });
-  } catch (error) {
-    logError('GET /api/online-daw/rooms', error);
-    const { response, status } = createErrorResponse(
-      'Failed to get rooms',
-      ErrorCode.INTERNAL_ERROR,
-      500
-    );
-    return NextResponse.json(response, { status });
-  }
+      return NextResponse.json({
+        success: true,
+        totalRooms: rooms.length,
+        rooms: roomsInfo,
+        timestamp: now
+      });
+    } catch (error) {
+      logError('GET /api/online-daw/rooms', error);
+      const { response, status } = createErrorResponse(
+        'Failed to get rooms',
+        ErrorCode.INTERNAL_ERROR,
+        500
+      );
+      return NextResponse.json(response, { status });
+    }
+  });
 }
 
 /**
@@ -68,8 +71,9 @@ export async function GET() {
  * 룸 생성 (호스트가 "Host" 클릭 시)
  */
 export async function POST(request: NextRequest) {
-  let hostId: string | undefined;
-  try {
+  return withApiLogging(request, '/api/online-daw/rooms', async () => {
+    let hostId: string | undefined;
+    try {
     console.log('[Online DAW] [POST /api/online-daw/rooms] Room creation request received');
     const body: CreateRoomRequest = await request.json();
     hostId = body.hostId;
@@ -96,32 +100,33 @@ export async function POST(request: NextRequest) {
     const room = roomService.createRoom(hostId);
     console.log('[Online DAW] Room created:', { roomCode: room.roomCode, hostId: room.hostId });
 
-    return NextResponse.json({
-      success: true,
-      roomCode: room.roomCode,
-      hostId: room.hostId,
-      expiresAt: room.expiresAt,
-      allowJoin: room.allowJoin,
-      createdAt: room.createdAt
-    });
-  } catch (error) {
-    logError('POST /api/online-daw/rooms', error, hostId ? { hostId } : undefined);
-    
-    if (error instanceof Error && error.message === 'No available room codes') {
+      return NextResponse.json({
+        success: true,
+        roomCode: room.roomCode,
+        hostId: room.hostId,
+        expiresAt: room.expiresAt,
+        allowJoin: room.allowJoin,
+        createdAt: room.createdAt
+      });
+    } catch (error) {
+      logError('POST /api/online-daw/rooms', error, hostId ? { hostId } : undefined);
+      
+      if (error instanceof Error && error.message === 'No available room codes') {
+        const { response, status } = createErrorResponse(
+          'No available room codes',
+          ErrorCode.NO_AVAILABLE_ROOM_CODES,
+          409
+        );
+        return NextResponse.json(response, { status });
+      }
+
       const { response, status } = createErrorResponse(
-        'No available room codes',
-        ErrorCode.NO_AVAILABLE_ROOM_CODES,
-        409
+        'Failed to create room',
+        ErrorCode.INTERNAL_ERROR,
+        500
       );
       return NextResponse.json(response, { status });
     }
-
-    const { response, status } = createErrorResponse(
-      'Failed to create room',
-      ErrorCode.INTERNAL_ERROR,
-      500
-    );
-    return NextResponse.json(response, { status });
-  }
+  });
 }
 

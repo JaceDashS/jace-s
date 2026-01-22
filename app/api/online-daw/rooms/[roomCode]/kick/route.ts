@@ -7,6 +7,7 @@ import { roomService } from '@/app/services/collaboration/roomService';
 import { isValidRoomCode } from '@/app/utils/collaboration/roomCodeGenerator';
 import type { KickParticipantRequest, KickParticipantResponse } from '@/app/types/collaboration/room';
 import { createErrorResponse, logError, ErrorCode } from '@/app/utils/collaboration/errorHandler';
+import { withApiLogging } from '@/app/utils/apiLogger';
 
 /**
  * POST /api/online-daw/rooms/:roomCode/kick
@@ -16,11 +17,11 @@ export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ roomCode: string }> }
 ) {
-  let roomCode: string | undefined;
-  let participantId: string | undefined;
-  try {
-    const resolvedParams = await params;
-    roomCode = resolvedParams.roomCode;
+  const resolvedParams = await params;
+  const roomCode = resolvedParams.roomCode;
+  return withApiLogging(request, `/api/online-daw/rooms/${roomCode}/kick`, async () => {
+    let participantId: string | undefined;
+    try {
     const body: KickParticipantRequest = await request.json();
     participantId = body.participantId;
     const clientId = request.headers.get('x-client-id') || undefined;
@@ -84,30 +85,31 @@ export async function POST(
     // Note: signalingService는 서버에서만 사용 가능하므로 여기서는 직접 호출하지 않음
     // WebSocket 서버에서 처리됨
 
-    const response: KickParticipantResponse = {
-      success: true,
-      message: 'Participant kicked'
-    };
+      const response: KickParticipantResponse = {
+        success: true,
+        message: 'Participant kicked'
+      };
 
-    return NextResponse.json(response);
-  } catch (error) {
-    logError('POST /api/online-daw/rooms/:roomCode/kick', error, { roomCode, participantId });
-    
-    if (error instanceof Error && error.message === 'Room not found') {
+      return NextResponse.json(response);
+    } catch (error) {
+      logError('POST /api/online-daw/rooms/:roomCode/kick', error, { roomCode, participantId });
+      
+      if (error instanceof Error && error.message === 'Room not found') {
+        const { response, status } = createErrorResponse(
+          'Room not found',
+          ErrorCode.ROOM_NOT_FOUND,
+          404
+        );
+        return NextResponse.json(response, { status });
+      }
+
       const { response, status } = createErrorResponse(
-        'Room not found',
-        ErrorCode.ROOM_NOT_FOUND,
-        404
+        'Failed to kick participant',
+        ErrorCode.INTERNAL_ERROR,
+        500
       );
       return NextResponse.json(response, { status });
     }
-
-    const { response, status } = createErrorResponse(
-      'Failed to kick participant',
-      ErrorCode.INTERNAL_ERROR,
-      500
-    );
-    return NextResponse.json(response, { status });
-  }
+  });
 }
 

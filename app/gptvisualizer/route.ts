@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getClientIP } from '../utils/requestUtils';
 import { getServiceUrl, GPT_VISUALIZER_TIMEOUT } from '../utils/serviceConfig';
+import { withApiLogging } from '../utils/apiLogger';
 
 // Route Segment Config
 export const dynamic = 'force-dynamic';
@@ -16,23 +17,33 @@ export const revalidate = 0;
  * @route ALL /gptvisualizer
  */
 export async function GET(request: NextRequest) {
-  return handleProxy(request, 'GET');
+  return withApiLogging(request, '/gptvisualizer', async () => {
+    return handleProxy(request, 'GET');
+  });
 }
 
 export async function POST(request: NextRequest) {
-  return handleProxy(request, 'POST');
+  return withApiLogging(request, '/gptvisualizer', async () => {
+    return handleProxy(request, 'POST');
+  });
 }
 
 export async function PUT(request: NextRequest) {
-  return handleProxy(request, 'PUT');
+  return withApiLogging(request, '/gptvisualizer', async () => {
+    return handleProxy(request, 'PUT');
+  });
 }
 
 export async function DELETE(request: NextRequest) {
-  return handleProxy(request, 'DELETE');
+  return withApiLogging(request, '/gptvisualizer', async () => {
+    return handleProxy(request, 'DELETE');
+  });
 }
 
 export async function PATCH(request: NextRequest) {
-  return handleProxy(request, 'PATCH');
+  return withApiLogging(request, '/gptvisualizer', async () => {
+    return handleProxy(request, 'PATCH');
+  });
 }
 
 export async function OPTIONS() {

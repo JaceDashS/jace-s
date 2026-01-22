@@ -7,6 +7,7 @@ import { roomService } from '@/app/services/collaboration/roomService';
 import { isValidRoomCode } from '@/app/utils/collaboration/roomCodeGenerator';
 import type { RoomInfo } from '@/app/types/collaboration/room';
 import { createErrorResponse, logError, ErrorCode } from '@/app/utils/collaboration/errorHandler';
+import { withApiLogging } from '@/app/utils/apiLogger';
 
 /**
  * GET /api/online-daw/rooms/:roomCode
@@ -16,10 +17,10 @@ export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ roomCode: string }> }
 ) {
-  let roomCode: string | undefined;
-  try {
-    const resolvedParams = await params;
-    roomCode = resolvedParams.roomCode;
+  const resolvedParams = await params;
+  const roomCode = resolvedParams.roomCode;
+  return withApiLogging(request, `/api/online-daw/rooms/${roomCode}`, async () => {
+    try {
     const clientId = request.headers.get('x-client-id') || undefined;
     console.log('[Online DAW] [GET /api/online-daw/rooms/:roomCode] Room lookup request:', { roomCode, clientId });
 
@@ -83,17 +84,18 @@ export async function GET(
       expiresAt: room.expiresAt
     };
 
-    console.log('[Online DAW] Room info returned:', roomInfo);
-    return NextResponse.json(roomInfo);
-  } catch (error) {
-    logError('GET /api/online-daw/rooms/:roomCode', error, { roomCode });
-    const { response, status } = createErrorResponse(
-      'Failed to get room',
-      ErrorCode.INTERNAL_ERROR,
-      500
-    );
-    return NextResponse.json(response, { status });
-  }
+      console.log('[Online DAW] Room info returned:', roomInfo);
+      return NextResponse.json(roomInfo);
+    } catch (error) {
+      logError('GET /api/online-daw/rooms/:roomCode', error, { roomCode });
+      const { response, status } = createErrorResponse(
+        'Failed to get room',
+        ErrorCode.INTERNAL_ERROR,
+        500
+      );
+      return NextResponse.json(response, { status });
+    }
+  });
 }
 
 /**
@@ -104,10 +106,10 @@ export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ roomCode: string }> }
 ) {
-  let roomCode: string | undefined;
-  try {
-    const resolvedParams = await params;
-    roomCode = resolvedParams.roomCode;
+  const resolvedParams = await params;
+  const roomCode = resolvedParams.roomCode;
+  return withApiLogging(request, `/api/online-daw/rooms/${roomCode}`, async () => {
+    try {
     const clientId = request.headers.get('x-client-id') || undefined;
 
     // 룸 코드 형식 검증
@@ -146,18 +148,19 @@ export async function DELETE(
     roomService.deleteRoom(roomCode);
     console.log(`[Online DAW] Room deleted: ${roomCode}`);
 
-    return NextResponse.json({
-      success: true,
-      roomCode
-    });
-  } catch (error) {
-    logError('DELETE /api/online-daw/rooms/:roomCode', error, { roomCode });
-    const { response, status } = createErrorResponse(
-      'Failed to delete room',
-      ErrorCode.INTERNAL_ERROR,
-      500
-    );
-    return NextResponse.json(response, { status });
-  }
+      return NextResponse.json({
+        success: true,
+        roomCode
+      });
+    } catch (error) {
+      logError('DELETE /api/online-daw/rooms/:roomCode', error, { roomCode });
+      const { response, status } = createErrorResponse(
+        'Failed to delete room',
+        ErrorCode.INTERNAL_ERROR,
+        500
+      );
+      return NextResponse.json(response, { status });
+    }
+  });
 }
 

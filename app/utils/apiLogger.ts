@@ -1,6 +1,51 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getClientIP } from './requestUtils';
-import { isVerboseLoggingEnabled, logDebug, logError, logInfo } from './logging';
+import { logDebug, logError, logInfo } from './logging';
+
+/**
+ * origin이나 x-origin에서 서비스 이름을 추출하는 함수
+ */
+function getServiceName(origin: string, xOrigin: string | null): string {
+  // x-origin 헤더가 있으면 우선 사용
+  const source = xOrigin || origin;
+  
+  if (!source || source === '(same-origin)') {
+    return 'Jace-S';
+  }
+  
+  try {
+    const url = new URL(source);
+    const hostname = url.hostname.toLowerCase();
+    
+    // 서비스 이름 매핑
+    if (hostname.includes('gpt') && (hostname.includes('visualizer') || hostname.includes('visual'))) {
+      return 'GPT 3D Visualizer';
+    }
+    if (hostname.includes('online') && hostname.includes('sequencer')) {
+      return 'Online Sequencer';
+    }
+    if (hostname.includes('sequencer')) {
+      return 'Online Sequencer';
+    }
+    
+    // 매핑되지 않으면 호스트명을 읽기 쉬운 형태로 변환
+    // 예: gpt-visualizer.jace-s.com -> GPT Visualizer
+    const parts = hostname.split('.');
+    if (parts.length > 0) {
+      const firstPart = parts[0];
+      // 하이픈을 공백으로, 각 단어의 첫 글자를 대문자로
+      const formatted = firstPart
+        .split('-')
+        .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+        .join(' ');
+      return formatted;
+    }
+    
+    return hostname;
+  } catch {
+    return source;
+  }
+}
 
 /**
  * API 요청 로깅 유틸리티
@@ -38,6 +83,7 @@ export function logApiRequest(request: NextRequest, path: string): ApiLogContext
     userAgent: userAgent || '(no user-agent)',
   };
 
+  // Debug 레벨에서만 상세 로그 출력
   logDebug('[API] Request:', {
     method: context.method,
     path: context.path,
@@ -55,6 +101,14 @@ export function logApiRequest(request: NextRequest, path: string): ApiLogContext
  * API 요청 성공 로그
  */
 export function logApiSuccess(context: ApiLogContext, statusCode: number, duration: number): void {
+  // 서비스 이름 추출
+  const serviceName = getServiceName(context.origin, context.xOrigin);
+  
+  // Info 레벨: 한 줄로 요청 정보와 IP 출력 (ECS 로그용)
+  const oneLineLog = `[${serviceName}] ${context.method} ${context.path} ${statusCode} ${duration}ms IP:${context.ip}`;
+  logInfo(oneLineLog);
+
+  // Debug 레벨: 상세 정보 출력
   const logData: Record<string, unknown> = {
     method: context.method,
     path: context.path,
@@ -71,7 +125,7 @@ export function logApiSuccess(context: ApiLogContext, statusCode: number, durati
     logData.body = context.requestBody;
   }
 
-  logInfo('[API] Success:', logData);
+  logDebug('[API] Success:', logData);
 }
 
 /**
@@ -86,7 +140,14 @@ export function logApiError(
   const errorMessage = error instanceof Error ? error.message : String(error);
   const errorStack = error instanceof Error ? error.stack : undefined;
 
-  logError('[API] Error:', {
+  // 서비스 이름 추출
+  const serviceName = getServiceName(context.origin, context.xOrigin);
+
+  // Error 레벨: 에러 메시지만 출력 (IP 제외)
+  logError(`[${serviceName}] ${context.method} ${context.path} ${statusCode} - ${errorMessage}`);
+
+  // Debug 레벨: 상세 정보 출력
+  logDebug('[API] Error Details:', {
     method: context.method,
     path: context.path,
     origin: context.origin,
@@ -164,9 +225,7 @@ export async function withApiLogging(
     const outcome = getOutcome(statusCode);
 
     if (outcome === 'success' || outcome === 'redirect') {
-      if (isVerboseLoggingEnabled()) {
-        logApiSuccess(context, statusCode, duration);
-      }
+      logApiSuccess(context, statusCode, duration);
     } else {
       const errorReason = await getErrorReason(response);
       logApiError(context, statusCode, errorReason || `HTTP ${statusCode}`, duration);

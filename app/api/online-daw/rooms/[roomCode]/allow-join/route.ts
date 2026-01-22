@@ -7,6 +7,7 @@ import { roomService } from '@/app/services/collaboration/roomService';
 import { isValidRoomCode } from '@/app/utils/collaboration/roomCodeGenerator';
 import type { AllowJoinRequest, AllowJoinResponse } from '@/app/types/collaboration/room';
 import { createErrorResponse, logError, ErrorCode } from '@/app/utils/collaboration/errorHandler';
+import { withApiLogging } from '@/app/utils/apiLogger';
 
 /**
  * POST /api/online-daw/rooms/:roomCode/allow-join
@@ -16,11 +17,11 @@ export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ roomCode: string }> }
 ) {
-  let roomCode: string | undefined;
-  let duration: number | undefined;
-  try {
-    const resolvedParams = await params;
-    roomCode = resolvedParams.roomCode;
+  const resolvedParams = await params;
+  const roomCode = resolvedParams.roomCode;
+  return withApiLogging(request, `/api/online-daw/rooms/${roomCode}/allow-join`, async () => {
+    let duration: number | undefined;
+    try {
     const body: AllowJoinRequest = await request.json();
     duration = body.duration || 60;
     const clientId = request.headers.get('x-client-id') || undefined;
@@ -90,26 +91,27 @@ export async function POST(
       allowJoinExpiresAt: updatedRoom.allowJoinExpiresAt!
     };
 
-    console.log('[Online DAW] Allow join response:', response);
-    return NextResponse.json(response);
-  } catch (error) {
-    logError('POST /api/online-daw/rooms/:roomCode/allow-join', error, { roomCode, duration });
-    
-    if (error instanceof Error && error.message === 'Room not found') {
+      console.log('[Online DAW] Allow join response:', response);
+      return NextResponse.json(response);
+    } catch (error) {
+      logError('POST /api/online-daw/rooms/:roomCode/allow-join', error, { roomCode, duration });
+      
+      if (error instanceof Error && error.message === 'Room not found') {
+        const { response, status } = createErrorResponse(
+          'Room not found',
+          ErrorCode.ROOM_NOT_FOUND,
+          404
+        );
+        return NextResponse.json(response, { status });
+      }
+
       const { response, status } = createErrorResponse(
-        'Room not found',
-        ErrorCode.ROOM_NOT_FOUND,
-        404
+        'Failed to allow join',
+        ErrorCode.INTERNAL_ERROR,
+        500
       );
       return NextResponse.json(response, { status });
     }
-
-    const { response, status } = createErrorResponse(
-      'Failed to allow join',
-      ErrorCode.INTERNAL_ERROR,
-      500
-    );
-    return NextResponse.json(response, { status });
-  }
+  });
 }
 
