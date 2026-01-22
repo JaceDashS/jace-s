@@ -75,3 +75,9 @@ Desktop.ini
 # Temporary files
 *.tmp
 *.temp
+
+# Runtime data
+/data
+
+# Test scripts
+/scripts/test/

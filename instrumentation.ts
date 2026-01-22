@@ -6,7 +6,7 @@
 export async function register() {
   if (process.env.NEXT_RUNTIME === 'nodejs') {
     // 서버 사이드에서만 실행
-    const { logCorsStartup } = await import('./app/utils/corsUtils');
+    const { logCorsStartup } = await import('./app/utils/corsOrigins');
     logCorsStartup();
     
     // LOG_VERBOSE가 true일 때만 환경 변수 로그 출력 (ECS 로그에서 확인 가능)

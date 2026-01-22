@@ -10,7 +10,7 @@ import { config } from 'dotenv';
 import { resolve } from 'path';
 import { signalingService } from './app/services/collaboration/signalingService';
 import { roomService } from './app/services/collaboration/roomService';
-import { getAllowedOriginsFromEnv } from './app/utils/corsUtils';
+import { getAllowedOriginsFromEnv } from './app/utils/corsOrigins';
 
 // 환경 변수 로드 (개발 환경일 때 .env.development, 프로덕션일 때 .env.production)
 const nodeEnv = process.env.NODE_ENV || 'development';
