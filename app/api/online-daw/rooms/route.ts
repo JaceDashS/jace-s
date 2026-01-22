@@ -8,6 +8,7 @@ import { signalingService } from '@/app/services/collaboration/signalingService'
 import type { CreateRoomRequest } from '@/app/types/collaboration/room';
 import { createErrorResponse, logError, ErrorCode, createValidationError } from '@/app/utils/collaboration/errorHandler';
 import { withApiLogging } from '@/app/utils/apiLogger';
+import { logDebug } from '@/app/utils/logging';
 
 /**
  * GET /api/online-daw/rooms
@@ -74,10 +75,9 @@ export async function POST(request: NextRequest) {
   return withApiLogging(request, '/api/online-daw/rooms', async () => {
     let hostId: string | undefined;
     try {
-    console.log('[Online DAW] [POST /api/online-daw/rooms] Room creation request received');
     const body: CreateRoomRequest = await request.json();
     hostId = body.hostId;
-    console.log('[Online DAW] Request body:', { hostId });
+    logDebug(`[Online DAW] [POST /api/online-daw/rooms] Room creation request received hostId:${hostId}`);
 
     // 입력 검증
     if (!hostId || typeof hostId !== 'string') {
@@ -98,7 +98,7 @@ export async function POST(request: NextRequest) {
 
     // 룸 생성 (서버가 룸 코드 생성)
     const room = roomService.createRoom(hostId);
-    console.log('[Online DAW] Room created:', { roomCode: room.roomCode, hostId: room.hostId });
+    logDebug(`[Online DAW] Room created:${room.roomCode} hostId:${room.hostId}`);
 
       return NextResponse.json({
         success: true,

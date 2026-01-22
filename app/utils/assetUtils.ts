@@ -2,11 +2,13 @@
  * 에셋 관련 유틸리티 함수
  */
 import { AssetsManifest, CertificationData } from '../types/assets';
+import { isVerboseLoggingEnabled } from './logging';
 
 const MANIFEST_PATH = '/manifest.json';
 const CONFIG_FETCH_TIMEOUT_MS = 8000;
 const MANIFEST_FETCH_TIMEOUT_MS = 8000;
-const shouldLog = process.env.NEXT_PUBLIC_DEBUG_LOGS === 'true';
+const isServer = typeof window === 'undefined';
+const shouldLog = process.env.NEXT_PUBLIC_DEBUG_LOGS === 'true' && (!isServer || isVerboseLoggingEnabled());
 
 const log = (...args: unknown[]) => {
   if (shouldLog) {

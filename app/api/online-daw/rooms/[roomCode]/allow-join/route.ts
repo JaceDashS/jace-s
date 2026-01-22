@@ -8,6 +8,7 @@ import { isValidRoomCode } from '@/app/utils/collaboration/roomCodeGenerator';
 import type { AllowJoinRequest, AllowJoinResponse } from '@/app/types/collaboration/room';
 import { createErrorResponse, logError, ErrorCode } from '@/app/utils/collaboration/errorHandler';
 import { withApiLogging } from '@/app/utils/apiLogger';
+import { logDebug } from '@/app/utils/logging';
 
 /**
  * POST /api/online-daw/rooms/:roomCode/allow-join
@@ -25,7 +26,7 @@ export async function POST(
     const body: AllowJoinRequest = await request.json();
     duration = body.duration || 60;
     const clientId = request.headers.get('x-client-id') || undefined;
-    console.log('[Online DAW] [POST /api/online-daw/rooms/:roomCode/allow-join] Allow join request received:', { roomCode, duration });
+    logDebug(`[Online DAW] [POST /api/online-daw/rooms/:roomCode/allow-join] Allow join request received:${roomCode} duration:${duration} clientId:${clientId || 'none'}`);
 
     // 룸 코드 형식 검증
     if (!isValidRoomCode(roomCode)) {
@@ -70,12 +71,13 @@ export async function POST(
 
     // 조인 허용 활성화
     roomService.allowJoin(roomCode, duration);
-    console.log('[Online DAW] Allow join activated:', { roomCode, duration, expiresAt: Date.now() + duration * 1000 });
+    const expiresAt = Date.now() + duration * 1000;
+    logDebug(`[Online DAW] Allow join activated:${roomCode} duration:${duration} expiresAt:${expiresAt}`);
 
     // 업데이트된 룸 정보 조회
     const updatedRoom = roomService.getRoom(roomCode);
     if (!updatedRoom) {
-      console.log('[Online DAW] Room not found after allowJoin:', roomCode);
+      logDebug(`[Online DAW] Room not found after allowJoin:${roomCode}`);
       return NextResponse.json(
         {
           success: false,
@@ -91,7 +93,7 @@ export async function POST(
       allowJoinExpiresAt: updatedRoom.allowJoinExpiresAt!
     };
 
-      console.log('[Online DAW] Allow join response:', response);
+      logDebug(`[Online DAW] Allow join response:${roomCode} allowJoin:${response.allowJoin} expiresAt:${response.allowJoinExpiresAt}`);
       return NextResponse.json(response);
     } catch (error) {
       logError('POST /api/online-daw/rooms/:roomCode/allow-join', error, { roomCode, duration });

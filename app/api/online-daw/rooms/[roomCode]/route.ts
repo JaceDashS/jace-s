@@ -8,6 +8,7 @@ import { isValidRoomCode } from '@/app/utils/collaboration/roomCodeGenerator';
 import type { RoomInfo } from '@/app/types/collaboration/room';
 import { createErrorResponse, logError, ErrorCode } from '@/app/utils/collaboration/errorHandler';
 import { withApiLogging } from '@/app/utils/apiLogger';
+import { logDebug } from '@/app/utils/logging';
 
 /**
  * GET /api/online-daw/rooms/:roomCode
@@ -22,7 +23,7 @@ export async function GET(
   return withApiLogging(request, `/api/online-daw/rooms/${roomCode}`, async () => {
     try {
     const clientId = request.headers.get('x-client-id') || undefined;
-    console.log('[Online DAW] [GET /api/online-daw/rooms/:roomCode] Room lookup request:', { roomCode, clientId });
+    logDebug(`[Online DAW] [GET /api/online-daw/rooms/:roomCode] Room lookup request:${roomCode} clientId:${clientId || 'none'}`);
 
     // 룸 코드 형식 검증
     if (!isValidRoomCode(roomCode)) {
@@ -46,7 +47,7 @@ export async function GET(
       return NextResponse.json(response, { status });
     }
 
-    console.log('[Online DAW] Room found:', { roomCode, allowJoin: room.allowJoin, participantCount: room.participants.length });
+    logDebug(`[Online DAW] Room found:${roomCode} allowJoin:${room.allowJoin} participantCount:${room.participants.length}`);
 
     // 조인 허용 만료 확인 및 업데이트
     roomService.checkAndUpdateAllowJoin(roomCode);
@@ -56,7 +57,7 @@ export async function GET(
     if (clientId) {
       isKicked = roomService.isKickedParticipant(roomCode, clientId);
       if (isKicked) {
-        console.log('[Online DAW] Client is kicked:', { roomCode, clientId });
+        logDebug(`[Online DAW] Client is kicked:${roomCode} clientId:${clientId}`);
       }
     }
 
@@ -84,7 +85,7 @@ export async function GET(
       expiresAt: room.expiresAt
     };
 
-      console.log('[Online DAW] Room info returned:', roomInfo);
+      logDebug(`[Online DAW] Room info returned:${roomCode} hostId:${roomInfo.hostId} status:${roomInfo.status}`);
       return NextResponse.json(roomInfo);
     } catch (error) {
       logError('GET /api/online-daw/rooms/:roomCode', error, { roomCode });
@@ -144,9 +145,9 @@ export async function DELETE(
     }
 
     // 룸 삭제
-    console.log(`[Online DAW] [DELETE /api/online-daw/rooms/:roomCode] Room deletion requested: ${roomCode}`);
+    logDebug(`[Online DAW] [DELETE /api/online-daw/rooms/:roomCode] Room deletion requested:${roomCode} clientId:${clientId || 'none'}`);
     roomService.deleteRoom(roomCode);
-    console.log(`[Online DAW] Room deleted: ${roomCode}`);
+    logDebug(`[Online DAW] Room deleted:${roomCode}`);
 
       return NextResponse.json({
         success: true,

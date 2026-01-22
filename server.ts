@@ -11,6 +11,7 @@ import { resolve } from 'path';
 import { signalingService } from './app/services/collaboration/signalingService';
 import { roomService } from './app/services/collaboration/roomService';
 import { getAllowedOriginsFromEnv } from './app/utils/corsOrigins';
+import { logDebug, logInfo } from './app/utils/logging';
 
 // 환경 변수 로드 (개발 환경일 때 .env.development, 프로덕션일 때 .env.production)
 const nodeEnv = process.env.NODE_ENV || 'development';
@@ -22,12 +23,12 @@ const hostname = process.env.HOST || '0.0.0.0';
 const port = parseInt(process.env.PORT || '3000', 10);
 
 // NODE_ENV 확인 로그
-console.log('=================================');
-console.log('Environment Check');
-console.log('=================================');
-console.log('NODE_ENV:', process.env.NODE_ENV || '(not set)');
-console.log('dev variable:', dev);
-console.log('=================================');
+logInfo('=================================');
+logInfo('Environment Check');
+logInfo('=================================');
+logInfo(`NODE_ENV: ${process.env.NODE_ENV || '(not set)'}`);
+logInfo(`dev variable: ${dev}`);
+logInfo('=================================');
 
 const app = next({ dev, hostname, port });
 const handle = app.getRequestHandler();
@@ -75,24 +76,24 @@ app.prepare().then(() => {
     const isAllowedOrigin = !origin || isDevMode || allowedOrigins.includes(origin);
 
     if (!isAllowedOrigin) {
-      console.log('[Online DAW] WebSocket connection rejected: origin not allowed', { origin });
+      logInfo('[Online DAW] WebSocket connection rejected: origin not allowed', { origin });
       ws.close(1008, 'origin not allowed');
       return;
     }
 
-    console.log('[Online DAW] WebSocket connection attempt');
+    logInfo('[Online DAW] WebSocket connection attempt');
     // 클라이언트 ID 추출 (쿼리 파라미터)
     const url = new URL(req.url || '', `http://${req.headers.host}`);
     const clientId = url.searchParams.get('clientId');
-    console.log('[Online DAW] WebSocket clientId:', clientId);
+    logDebug('[Online DAW] WebSocket clientId:', { clientId });
 
     if (!clientId) {
-      console.log('[Online DAW] WebSocket connection rejected: clientId is required');
+      logInfo('[Online DAW] WebSocket connection rejected: clientId is required');
       ws.close(1008, 'clientId is required');
       return;
     }
 
-    console.log('[Online DAW] WebSocket connection established for client:', clientId);
+    logInfo('[Online DAW] WebSocket connection established for client:', { clientId });
     // 연결 처리
     signalingService.handleConnection(ws, clientId);
 
@@ -108,7 +109,7 @@ app.prepare().then(() => {
   setInterval(() => {
     const deletedRoomCodes = roomService.cleanupExpiredRooms();
     if (deletedRoomCodes.length > 0) {
-      console.log(`[Online DAW] [${new Date().toISOString()}] Room(s) deleted due to expiration (6 hours): ${deletedRoomCodes.join(', ')}`);
+      logInfo(`[Online DAW] [${new Date().toISOString()}] Room(s) deleted due to expiration (6 hours): ${deletedRoomCodes.join(', ')}`);
     }
   }, 60 * 1000); // 1분
 
@@ -117,10 +118,10 @@ app.prepare().then(() => {
     const result = signalingService.cleanupDeadConnections();
     if (result.cleaned > 0 || result.roomsDeleted.length > 0) {
       if (result.cleaned > 0) {
-        console.log(`[Online DAW] [${new Date().toISOString()}] Cleaned up ${result.cleaned} dead WebSocket connection(s)`);
+        logInfo(`[Online DAW] [${new Date().toISOString()}] Cleaned up ${result.cleaned} dead WebSocket connection(s)`);
       }
       if (result.roomsDeleted.length > 0) {
-        console.log(`[Online DAW] [${new Date().toISOString()}] Room(s) deleted due to host connection closed: ${result.roomsDeleted.join(', ')}`);
+        logInfo(`[Online DAW] [${new Date().toISOString()}] Room(s) deleted due to host connection closed: ${result.roomsDeleted.join(', ')}`);
       }
     }
   }, 60 * 1000); // 1분
@@ -158,13 +159,14 @@ app.prepare().then(() => {
   }, 60 * 1000); // 1분
 
   server.listen(port, hostname, () => {
-    console.log(`=================================`);
-    console.log(`Online DAW Collaboration Server`);
-    console.log(`=================================`);
-    console.log(`Server running on http://${hostname}:${port}`);
-    console.log(`Local access: http://localhost:${port}`);
-    console.log(`WebSocket: ws://${hostname}:${port}/api/online-daw/signaling`);
-    console.log(`=================================`);
+    logInfo(`=================================`);
+    logInfo(`Online DAW Collaboration Server`);
+    logInfo(`=================================`);
+    logInfo(`Server running on http://${hostname}:${port}`);
+    logInfo(`Local access: http://localhost:${port}`);
+    logInfo(`WebSocket: ws://${hostname}:${port}/api/online-daw/signaling`);
+    logInfo(`=================================`);
   });
 });
+
 

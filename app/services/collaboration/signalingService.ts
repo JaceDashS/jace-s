@@ -5,6 +5,7 @@
 
 import { WebSocket } from 'ws';
 import { roomService } from './roomService';
+import { logDebug, logError } from '../../utils/logging';
 
 /**
  * 시그널링 메시지 타입 (WebRTC 시그널링용)
@@ -219,7 +220,7 @@ export class SignalingService {
         const message: ClientToServerMessage = JSON.parse(data.toString());
         this.handleMessage(clientId, message);
       } catch (error) {
-        console.error('Error parsing message:', error);
+        logError('Error parsing message:', { clientId, error: error instanceof Error ? error.message : String(error) });
         ws.send(JSON.stringify({
           action: 'error',
           error: 'Invalid message format',
@@ -237,7 +238,7 @@ export class SignalingService {
     });
 
     ws.on('error', (error) => {
-      console.error('WebSocket error:', error);
+      logError('WebSocket error:', { clientId, error: error instanceof Error ? error.message : String(error) });
       const connection = signalingStore.getConnection(clientId);
       if (connection?.roomCode) {
         roomService.removeParticipant(connection.roomCode, clientId);
@@ -257,21 +258,21 @@ export class SignalingService {
    * 메시지 처리 (register, join, signaling, leave)
    */
   private handleMessage(senderId: string, message: ClientToServerMessage): void {
-    console.log('[Online DAW] WebSocket message received:', { senderId, action: message.action, roomCode: message.roomCode });
+    logDebug(`[Online DAW] WebSocket message received: ${message.action} roomCode:${message.roomCode} senderId:${senderId}`);
     const sender = signalingStore.getConnection(senderId);
     if (!sender) {
-      console.log('[Online DAW] Sender not found:', senderId);
+      logDebug(`[Online DAW] Sender not found: ${senderId}`);
       return;
     }
 
     try {
       switch (message.action) {
         case 'register':
-          console.log('[Online DAW] Processing register action');
+          logDebug(`[Online DAW] Processing register action senderId:${senderId}`);
           this.handleRegister(senderId, message);
           break;
         case 'join':
-          console.log('[Online DAW] Processing join action');
+          logDebug(`[Online DAW] Processing join action senderId:${senderId}`);
           this.handleJoin(senderId, message);
           break;
         case 'signaling':
@@ -284,7 +285,7 @@ export class SignalingService {
           this.sendError(senderId, `Unknown action: ${message.action}`);
       }
     } catch (error) {
-      console.error('[Online DAW] Error handling message:', error);
+      logError('[Online DAW] Error handling message:', { senderId, action: message.action, error: error instanceof Error ? error.message : String(error) });
       this.sendError(senderId, error instanceof Error ? error.message : 'Unknown error');
     }
   }
@@ -295,16 +296,16 @@ export class SignalingService {
   private handleRegister(clientId: string, message: ClientToServerMessage): void {
     const { roomCode, data } = message;
     
-    console.log('[Online DAW] [handleRegister] Processing register:', { clientId, roomCode, data });
+    logDebug(`[Online DAW] [handleRegister] Processing register clientId:${clientId} roomCode:${roomCode || 'none'} role:${data?.role || 'none'}`);
     
     if (!data?.role) {
-      console.log('[Online DAW] [handleRegister] Error: role is missing');
+      logDebug(`[Online DAW] [handleRegister] Error: role is missing clientId:${clientId}`);
       this.sendError(clientId, 'Invalid register message: role is required');
       return;
     }
 
     if (data.role !== 'host') {
-      console.log('[Online DAW] [handleRegister] Error: Invalid role:', data.role);
+      logDebug(`[Online DAW] [handleRegister] Error: Invalid role:${data.role} clientId:${clientId}`);
       this.sendError(clientId, 'Invalid role: register action requires host role');
       return;
     }
@@ -312,47 +313,47 @@ export class SignalingService {
     // roomCode가 없으면 hostId로 룸 찾기 (방 생성 직후 register 시나리오)
     let targetRoomCode = roomCode;
     if (!targetRoomCode) {
-      console.log('[Online DAW] [handleRegister] roomCode not provided, searching room by hostId:', clientId);
+      logDebug(`[Online DAW] [handleRegister] roomCode not provided, searching room by hostId:${clientId}`);
       
       // 모든 룸 확인
       const allRooms = roomService.getAllRooms();
-      console.log('[Online DAW] [handleRegister] All rooms:', allRooms.map(r => ({ roomCode: r.roomCode, hostId: r.hostId, createdAt: r.createdAt })));
+      logDebug(`[Online DAW] [handleRegister] All rooms: ${allRooms.map(r => r.roomCode).join(',')}`);
       
       const room = roomService.getRoomByHostId(clientId);
       if (!room) {
-        console.log('[Online DAW] [handleRegister] Error: No active room found for hostId:', clientId);
+        logDebug(`[Online DAW] [handleRegister] Error: No active room found for hostId:${clientId}`);
         this.sendError(clientId, 'No active room found for this host. Please create a room first.');
         return;
       }
       targetRoomCode = room.roomCode;
-      console.log('[Online DAW] [handleRegister] Found room by hostId:', { hostId: clientId, roomCode: targetRoomCode });
+      logDebug(`[Online DAW] [handleRegister] Found room by hostId:${clientId} roomCode:${targetRoomCode}`);
     } else {
-      console.log('[Online DAW] [handleRegister] Using provided roomCode:', targetRoomCode);
+      logDebug(`[Online DAW] [handleRegister] Using provided roomCode:${targetRoomCode}`);
     }
 
     // 룸 존재 확인
     const room = roomService.getRoom(targetRoomCode);
     if (!room) {
-      console.log('[Online DAW] [handleRegister] Error: Room not found:', targetRoomCode);
+      logDebug(`[Online DAW] [handleRegister] Error: Room not found:${targetRoomCode}`);
       this.sendError(clientId, `Room not found: ${targetRoomCode}`);
       return;
     }
 
-    console.log('[Online DAW] [handleRegister] Room found:', { roomCode: room.roomCode, hostId: room.hostId, clientId });
+    logDebug(`[Online DAW] [handleRegister] Room found:${room.roomCode} hostId:${room.hostId} clientId:${clientId}`);
 
     // 호스트 권한 확인
     if (room.hostId !== clientId) {
-      console.log('[Online DAW] [handleRegister] Error: Unauthorized - hostId mismatch:', { roomHostId: room.hostId, clientId });
+      logDebug(`[Online DAW] [handleRegister] Error: Unauthorized - hostId mismatch roomHostId:${room.hostId} clientId:${clientId}`);
       this.sendError(clientId, 'Unauthorized: You are not the host of this room');
       return;
     }
 
     // 룸에 호스트 등록
-    console.log('[Online DAW] [handleRegister] Registering host to room:', { clientId, roomCode: targetRoomCode });
+    logDebug(`[Online DAW] [handleRegister] Registering host to room:${targetRoomCode} clientId:${clientId}`);
     this.registerClient(clientId, targetRoomCode, 'host');
 
     // 등록 성공 응답
-    console.log('[Online DAW] [handleRegister] Registration successful, sending response');
+    logDebug(`[Online DAW] [handleRegister] Registration successful, sending response clientId:${clientId}`);
     this.sendToClient(clientId, {
       action: 'registered',
       roomCode: targetRoomCode,
@@ -367,53 +368,53 @@ export class SignalingService {
    * 참가자 조인 처리
    */
   private handleJoin(clientId: string, message: ClientToServerMessage): void {
-    console.log('[Online DAW] Handling join for client:', clientId);
+    logDebug(`[Online DAW] Handling join for client:${clientId}`);
     const { roomCode, data } = message;
     
     // data가 없거나 role이 없으면 기본값으로 participant 설정
     const role = data?.role || 'participant';
     
     if (!roomCode) {
-      console.log('[Online DAW] Join failed: roomCode is required');
+      logDebug(`[Online DAW] Join failed: roomCode is required clientId:${clientId}`);
       this.sendError(clientId, 'Invalid join message: roomCode is required');
       return;
     }
 
     if (role !== 'participant') {
-      console.log('[Online DAW] Join failed: Invalid role:', role);
+      logDebug(`[Online DAW] Join failed: Invalid role:${role} clientId:${clientId}`);
       this.sendError(clientId, 'Invalid role: join action requires participant role');
       return;
     }
 
     // 룸 정보 확인
-    console.log('[Online DAW] Looking up room:', roomCode);
+    logDebug(`[Online DAW] Looking up room:${roomCode} clientId:${clientId}`);
     const room = roomService.getRoom(roomCode);
     
     if (!room) {
-      console.log('[Online DAW] Join failed: Room not found:', roomCode);
-      console.log('[Online DAW] Available rooms:', roomService.getAllRooms().map(r => r.roomCode));
+      const availableRooms = roomService.getAllRooms().map(r => r.roomCode).join(',');
+      logDebug(`[Online DAW] Join failed: Room not found:${roomCode} clientId:${clientId} availableRooms:${availableRooms}`);
       this.sendError(clientId, 'Room not found');
       return;
     }
     
-    console.log('[Online DAW] Room found for join:', { roomCode, hostId: room.hostId, allowJoin: room.allowJoin });
+    logDebug(`[Online DAW] Room found for join:${roomCode} hostId:${room.hostId} allowJoin:${room.allowJoin} clientId:${clientId}`);
 
     // 호스트가 자신의 룸에 게스트로 조인하는 것을 방지
     if (room.hostId === clientId) {
-      console.log('[Online DAW] Join failed: Host cannot join their own room');
+      logDebug(`[Online DAW] Join failed: Host cannot join their own room clientId:${clientId} roomCode:${roomCode}`);
       this.sendError(clientId, 'Host cannot join their own room as a participant');
       return;
     }
 
     // 조인 허용 여부 확인
     if (!room.allowJoin) {
-      console.log('[Online DAW] Join failed: Room is not accepting new participants');
+      logDebug(`[Online DAW] Join failed: Room is not accepting new participants clientId:${clientId} roomCode:${roomCode}`);
       this.sendError(clientId, 'Room is not accepting new participants');
       return;
     }
 
     // 룸에 참가자 등록
-    console.log('[Online DAW] Registering participant:', { clientId, roomCode });
+    logDebug(`[Online DAW] Registering participant:${clientId} roomCode:${roomCode}`);
     this.registerClient(clientId, roomCode, 'participant');
 
     // 참가자 추가 (roomService)
@@ -421,15 +422,11 @@ export class SignalingService {
     const updatedRoom = roomService.getRoom(roomCode);
     
     if (updatedRoom) {
-      console.log('[Online DAW] Participant added to room:', {
-        roomCode,
-        clientId,
-        participantCount: updatedRoom.participants.length
-      });
+      logDebug(`[Online DAW] Participant added to room:${roomCode} clientId:${clientId} participantCount:${updatedRoom.participants.length}`);
     }
 
     // 조인 성공 응답 (참가자에게)
-    console.log('[Online DAW] Sending joined response to client:', clientId);
+    logDebug(`[Online DAW] Sending joined response to client:${clientId} roomCode:${roomCode}`);
     this.sendToClient(clientId, {
       action: 'joined',
       roomCode,
@@ -443,10 +440,7 @@ export class SignalingService {
 
     // Notify room about participant join
     if (updatedRoom) {
-      console.log('[Online DAW] Broadcasting participant join:', {
-        roomCode,
-        participantId: clientId
-      });
+      logDebug(`[Online DAW] Broadcasting participant join:${roomCode} participantId:${clientId}`);
       this.broadcastToRoom(roomCode, {
         action: 'participant-joined',
         roomCode,
@@ -465,21 +459,21 @@ export class SignalingService {
   private handleSignaling(senderId: string, message: ClientToServerMessage): void {
     const sender = signalingStore.getConnection(senderId);
     if (!sender) {
-      console.log('[Online DAW] Signaling failed: Sender not found:', senderId);
+      logDebug(`[Online DAW] Signaling failed: Sender not found:${senderId}`);
       return;
     }
 
     const { roomCode, data } = message;
 
     if (!roomCode || !data?.type || !data?.to) {
-      console.log('[Online DAW] Signaling failed: Invalid message format:', { roomCode, hasType: !!data?.type, hasTo: !!data?.to });
+      logDebug(`[Online DAW] Signaling failed: Invalid message format senderId:${senderId} roomCode:${roomCode || 'none'} hasType:${!!data?.type} hasTo:${!!data?.to}`);
       this.sendError(senderId, 'Invalid signaling message: roomCode, type, and to are required');
       return;
     }
 
     // 룸 코드 검증
     if (sender.roomCode !== roomCode) {
-      console.log('[Online DAW] Signaling failed: Sender not in room:', { senderId, senderRoom: sender.roomCode, messageRoom: roomCode });
+      logDebug(`[Online DAW] Signaling failed: Sender not in room senderId:${senderId} senderRoom:${sender.roomCode} messageRoom:${roomCode}`);
       this.sendError(senderId, 'Client is not in the specified room');
       return;
     }
@@ -487,14 +481,14 @@ export class SignalingService {
     // 수신자 찾기
     const receiver = signalingStore.getConnection(data.to);
     if (!receiver) {
-      console.log('[Online DAW] Signaling failed: Receiver not found:', data.to);
+      logDebug(`[Online DAW] Signaling failed: Receiver not found senderId:${senderId} receiverId:${data.to}`);
       this.sendError(senderId, `Receiver ${data.to} not found`);
       return;
     }
 
     // 수신자의 룸 코드 확인
     if (receiver.roomCode !== roomCode) {
-      console.log('[Online DAW] Signaling failed: Receiver not in room:', { receiverId: data.to, receiverRoom: receiver.roomCode, messageRoom: roomCode });
+      logDebug(`[Online DAW] Signaling failed: Receiver not in room senderId:${senderId} receiverId:${data.to} receiverRoom:${receiver.roomCode} messageRoom:${roomCode}`);
       this.sendError(senderId, `Receiver ${data.to} is not in room ${roomCode}`);
       return;
     }
@@ -514,9 +508,9 @@ export class SignalingService {
 
     if (receiver.ws.readyState === WebSocket.OPEN) {
       receiver.ws.send(JSON.stringify(signalingMessage));
-      console.log('[Online DAW] Signaling message forwarded:', { from: senderId, to: data.to, type: data.type });
+      logDebug(`[Online DAW] Signaling message forwarded from:${senderId} to:${data.to} type:${data.type} roomCode:${roomCode}`);
     } else {
-      console.log('[Online DAW] Signaling failed: Receiver WebSocket not open:', { receiverId: data.to, readyState: receiver.ws.readyState });
+      logDebug(`[Online DAW] Signaling failed: Receiver WebSocket not open receiverId:${data.to} readyState:${receiver.ws.readyState}`);
     }
   }
 
@@ -537,7 +531,7 @@ export class SignalingService {
           this.notifyRoomClosed(roomCode);
           // 룸 삭제
           roomService.deleteRoom(roomCode);
-          console.log(`[Online DAW] [${new Date().toISOString()}] Room deleted due to host leave: ${roomCode} (hostId: ${clientId})`);
+          logDebug(`[Online DAW] Room deleted due to host leave:${roomCode} hostId:${clientId}`);
         }
       } else {
         // 참가자 제거 (roomService)
@@ -592,7 +586,7 @@ export class SignalingService {
         try {
           connection.ws.send(messageStr);
         } catch (error) {
-          console.error(`[Online DAW] Failed to broadcast to client ${clientId}:`, error);
+          logError(`[Online DAW] Failed to broadcast to client:${clientId}`, { error: error instanceof Error ? error.message : String(error) });
           // 전송 실패 시 연결 정리
           signalingStore.removeConnection(clientId);
         }
@@ -615,7 +609,7 @@ export class SignalingService {
       try {
         connection.ws.send(JSON.stringify(message));
       } catch (error) {
-        console.error(`[Online DAW] Failed to send message to client ${clientId}:`, error);
+        logError(`[Online DAW] Failed to send message to client:${clientId}`, { error: error instanceof Error ? error.message : String(error) });
         // 전송 실패 시 연결 정리
         signalingStore.removeConnection(clientId);
       }
@@ -642,7 +636,7 @@ export class SignalingService {
         this.notifyRoomClosed(roomCode);
         // 룸 삭제
         roomService.deleteRoom(roomCode);
-        console.log(`[Online DAW] [${new Date().toISOString()}] Room deleted due to host connection closed: ${roomCode} (hostId: ${room.hostId})`);
+        logDebug(`[Online DAW] Room deleted due to host connection closed:${roomCode} hostId:${room.hostId}`);
       }
     }
     

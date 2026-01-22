@@ -5,6 +5,7 @@
 
 import type { Room } from '@/app/types/collaboration/room';
 import { generateRoomCode } from '@/app/utils/collaboration/roomCodeGenerator';
+import { logDebug } from '@/app/utils/logging';
 /**
  * 룸 저장소 (인메모리)
  */
@@ -131,22 +132,23 @@ export class RoomService {
    * @returns 룸 정보 또는 null
    */
   getRoom(roomCode: string): Room | null {
-    console.log('[Online DAW] [RoomService] getRoom called:', { roomCode, totalRooms: roomStore.getAll().length });
+    const totalRooms = roomStore.getAll().length;
+    logDebug(`[Online DAW] [RoomService] getRoom called:${roomCode} totalRooms:${totalRooms}`);
     const room = roomStore.get(roomCode);
     if (!room) {
-      console.log('[Online DAW] [RoomService] Room not found in store:', roomCode);
-      console.log('[Online DAW] [RoomService] Available room codes:', Array.from(roomStore.getAllRoomCodes()));
+      const availableRooms = Array.from(roomStore.getAllRoomCodes()).join(',');
+      logDebug(`[Online DAW] [RoomService] Room not found in store:${roomCode} availableRooms:${availableRooms}`);
       return null;
     }
     
     // 만료된 룸인지 확인
     const now = Date.now();
     if (now > room.expiresAt) {
-      console.log('[Online DAW] [RoomService] Room expired:', { roomCode, now, expiresAt: room.expiresAt });
+      logDebug(`[Online DAW] [RoomService] Room expired:${roomCode} now:${now} expiresAt:${room.expiresAt}`);
       return null;
     }
     
-    console.log('[Online DAW] [RoomService] Room found:', { roomCode, allowJoin: room.allowJoin, participantCount: room.participants.length });
+    logDebug(`[Online DAW] [RoomService] Room found:${roomCode} allowJoin:${room.allowJoin} participantCount:${room.participants.length}`);
     return room;
   }
 
