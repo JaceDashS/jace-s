@@ -133,22 +133,22 @@ export class RoomService {
    */
   getRoom(roomCode: string): Room | null {
     const totalRooms = roomStore.getAll().length;
-    logDebug(`[Online DAW] [RoomService] getRoom called:${roomCode} totalRooms:${totalRooms}`);
+    logDebug(`[Online Sequencer] [RoomService] getRoom called:${roomCode} totalRooms:${totalRooms}`);
     const room = roomStore.get(roomCode);
     if (!room) {
       const availableRooms = Array.from(roomStore.getAllRoomCodes()).join(',');
-      logDebug(`[Online DAW] [RoomService] Room not found in store:${roomCode} availableRooms:${availableRooms}`);
+      logDebug(`[Online Sequencer] [RoomService] Room not found in store:${roomCode} availableRooms:${availableRooms}`);
       return null;
     }
     
     // 만료된 룸인지 확인
     const now = Date.now();
     if (now > room.expiresAt) {
-      logDebug(`[Online DAW] [RoomService] Room expired:${roomCode} now:${now} expiresAt:${room.expiresAt}`);
+      logDebug(`[Online Sequencer] [RoomService] Room expired:${roomCode} now:${now} expiresAt:${room.expiresAt}`);
       return null;
     }
     
-    logDebug(`[Online DAW] [RoomService] Room found:${roomCode} allowJoin:${room.allowJoin} participantCount:${room.participants.length}`);
+    logDebug(`[Online Sequencer] [RoomService] Room found:${roomCode} allowJoin:${room.allowJoin} participantCount:${room.participants.length}`);
     return room;
   }
 

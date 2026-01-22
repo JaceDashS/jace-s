@@ -67,7 +67,7 @@ app.prepare().then(() => {
   // WebSocket 서버 설정
   const wss = new WebSocketServer({
     server,
-    path: '/api/online-daw/signaling'
+    path: '/api/online-sequencer/signaling'
   });
 
   wss.on('connection', (ws: WebSocket, req) => {
@@ -76,24 +76,24 @@ app.prepare().then(() => {
     const isAllowedOrigin = !origin || isDevMode || allowedOrigins.includes(origin);
 
     if (!isAllowedOrigin) {
-      logInfo('[Online DAW] WebSocket connection rejected: origin not allowed', { origin });
+      logInfo('[Online Sequencer] WebSocket connection rejected: origin not allowed', { origin });
       ws.close(1008, 'origin not allowed');
       return;
     }
 
-    logInfo('[Online DAW] WebSocket connection attempt');
+    logInfo('[Online Sequencer] WebSocket connection attempt');
     // 클라이언트 ID 추출 (쿼리 파라미터)
     const url = new URL(req.url || '', `http://${req.headers.host}`);
     const clientId = url.searchParams.get('clientId');
-    logDebug('[Online DAW] WebSocket clientId:', { clientId });
+    logDebug('[Online Sequencer] WebSocket clientId:', { clientId });
 
     if (!clientId) {
-      logInfo('[Online DAW] WebSocket connection rejected: clientId is required');
+      logInfo('[Online Sequencer] WebSocket connection rejected: clientId is required');
       ws.close(1008, 'clientId is required');
       return;
     }
 
-    logInfo('[Online DAW] WebSocket connection established for client:', { clientId });
+    logInfo('[Online Sequencer] WebSocket connection established for client:', { clientId });
     // 연결 처리
     signalingService.handleConnection(ws, clientId);
 
@@ -109,7 +109,7 @@ app.prepare().then(() => {
   setInterval(() => {
     const deletedRoomCodes = roomService.cleanupExpiredRooms();
     if (deletedRoomCodes.length > 0) {
-      logInfo(`[Online DAW] [${new Date().toISOString()}] Room(s) deleted due to expiration (6 hours): ${deletedRoomCodes.join(', ')}`);
+      logInfo(`[Online Sequencer] [${new Date().toISOString()}] Room(s) deleted due to expiration (6 hours): ${deletedRoomCodes.join(', ')}`);
     }
   }, 60 * 1000); // 1분
 
@@ -118,10 +118,10 @@ app.prepare().then(() => {
     const result = signalingService.cleanupDeadConnections();
     if (result.cleaned > 0 || result.roomsDeleted.length > 0) {
       if (result.cleaned > 0) {
-        logInfo(`[Online DAW] [${new Date().toISOString()}] Cleaned up ${result.cleaned} dead WebSocket connection(s)`);
+        logInfo(`[Online Sequencer] [${new Date().toISOString()}] Cleaned up ${result.cleaned} dead WebSocket connection(s)`);
       }
       if (result.roomsDeleted.length > 0) {
-        logInfo(`[Online DAW] [${new Date().toISOString()}] Room(s) deleted due to host connection closed: ${result.roomsDeleted.join(', ')}`);
+        logInfo(`[Online Sequencer] [${new Date().toISOString()}] Room(s) deleted due to host connection closed: ${result.roomsDeleted.join(', ')}`);
       }
     }
   }, 60 * 1000); // 1분
@@ -160,11 +160,11 @@ app.prepare().then(() => {
 
   server.listen(port, hostname, () => {
     logInfo(`=================================`);
-    logInfo(`Online DAW Collaboration Server`);
+    logInfo(`Online Sequencer Collaboration Server`);
     logInfo(`=================================`);
     logInfo(`Server running on http://${hostname}:${port}`);
     logInfo(`Local access: http://localhost:${port}`);
-    logInfo(`WebSocket: ws://${hostname}:${port}/api/online-daw/signaling`);
+    logInfo(`WebSocket: ws://${hostname}:${port}/api/online-sequencer/signaling`);
     logInfo(`=================================`);
   });
 });

@@ -98,17 +98,20 @@ export function logApiRequest(request: NextRequest, path: string): ApiLogContext
 }
 
 /**
+ * 헬스체크 경로인지 확인
+ */
+function isHealthCheckPath(path: string): boolean {
+  return path === '/health' || path.startsWith('/external/health');
+}
+
+/**
  * API 요청 성공 로그
  */
 export function logApiSuccess(context: ApiLogContext, statusCode: number, duration: number): void {
   // 서비스 이름 추출
   const serviceName = getServiceName(context.origin, context.xOrigin);
   
-  // Info 레벨: 한 줄로 요청 정보와 IP 출력 (ECS 로그용)
-  const oneLineLog = `[${serviceName}] ${context.method} ${context.path} ${statusCode} ${duration}ms IP:${context.ip}`;
-  logInfo(oneLineLog);
-
-  // Debug 레벨: 상세 정보 출력
+  // 상세 정보 로그 데이터
   const logData: Record<string, unknown> = {
     method: context.method,
     path: context.path,
@@ -125,7 +128,16 @@ export function logApiSuccess(context: ApiLogContext, statusCode: number, durati
     logData.body = context.requestBody;
   }
 
-  logDebug('[API] Success:', logData);
+  // 헬스체크는 debug 레벨로만 출력
+  if (isHealthCheckPath(context.path)) {
+    logDebug(`[${serviceName}] ${context.method} ${context.path} ${statusCode} ${duration}ms IP:${context.ip}`, logData);
+  } else {
+    // Info 레벨: 한 줄로 요청 정보와 IP 출력 (ECS 로그용)
+    const oneLineLog = `[${serviceName}] ${context.method} ${context.path} ${statusCode} ${duration}ms IP:${context.ip}`;
+    logInfo(oneLineLog);
+    // Debug 레벨: 상세 정보 출력
+    logDebug('[API] Success:', logData);
+  }
 }
 
 /**
@@ -143,11 +155,8 @@ export function logApiError(
   // 서비스 이름 추출
   const serviceName = getServiceName(context.origin, context.xOrigin);
 
-  // Error 레벨: 에러 메시지만 출력 (IP 제외)
-  logError(`[${serviceName}] ${context.method} ${context.path} ${statusCode} - ${errorMessage}`);
-
-  // Debug 레벨: 상세 정보 출력
-  logDebug('[API] Error Details:', {
+  // 상세 정보 로그 데이터
+  const logData: Record<string, unknown> = {
     method: context.method,
     path: context.path,
     origin: context.origin,
@@ -159,7 +168,17 @@ export function logApiError(
     stack: errorStack,
     duration: `${duration}ms`,
     timestamp: new Date().toISOString(),
-  });
+  };
+
+  // 헬스체크는 debug 레벨로만 출력
+  if (isHealthCheckPath(context.path)) {
+    logDebug(`[${serviceName}] ${context.method} ${context.path} ${statusCode} - ${errorMessage}`, logData);
+  } else {
+    // Error 레벨: 에러 메시지만 출력 (IP 제외)
+    logError(`[${serviceName}] ${context.method} ${context.path} ${statusCode} - ${errorMessage}`);
+    // Debug 레벨: 상세 정보 출력
+    logDebug('[API] Error Details:', logData);
+  }
 }
 
 function getOutcome(statusCode: number): 'success' | 'redirect' | 'denied' | 'error' {

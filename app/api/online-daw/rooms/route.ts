@@ -77,7 +77,7 @@ export async function POST(request: NextRequest) {
     try {
     const body: CreateRoomRequest = await request.json();
     hostId = body.hostId;
-    logDebug(`[Online DAW] [POST /api/online-daw/rooms] Room creation request received hostId:${hostId}`);
+    logDebug(`[Online Sequencer] [POST /api/online-daw/rooms] Room creation request received hostId:${hostId}`);
 
     // 입력 검증
     if (!hostId || typeof hostId !== 'string') {
@@ -98,7 +98,7 @@ export async function POST(request: NextRequest) {
 
     // 룸 생성 (서버가 룸 코드 생성)
     const room = roomService.createRoom(hostId);
-    logDebug(`[Online DAW] Room created:${room.roomCode} hostId:${room.hostId}`);
+    logDebug(`[Online Sequencer] Room created:${room.roomCode} hostId:${room.hostId}`);
 
       return NextResponse.json({
         success: true,

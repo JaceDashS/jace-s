@@ -258,21 +258,21 @@ export class SignalingService {
    * 메시지 처리 (register, join, signaling, leave)
    */
   private handleMessage(senderId: string, message: ClientToServerMessage): void {
-    logDebug(`[Online DAW] WebSocket message received: ${message.action} roomCode:${message.roomCode} senderId:${senderId}`);
+    logDebug(`[Online Sequencer] WebSocket message received: ${message.action} roomCode:${message.roomCode} senderId:${senderId}`);
     const sender = signalingStore.getConnection(senderId);
     if (!sender) {
-      logDebug(`[Online DAW] Sender not found: ${senderId}`);
+      logDebug(`[Online Sequencer] Sender not found: ${senderId}`);
       return;
     }
 
     try {
       switch (message.action) {
         case 'register':
-          logDebug(`[Online DAW] Processing register action senderId:${senderId}`);
+          logDebug(`[Online Sequencer] Processing register action senderId:${senderId}`);
           this.handleRegister(senderId, message);
           break;
         case 'join':
-          logDebug(`[Online DAW] Processing join action senderId:${senderId}`);
+          logDebug(`[Online Sequencer] Processing join action senderId:${senderId}`);
           this.handleJoin(senderId, message);
           break;
         case 'signaling':
@@ -285,7 +285,7 @@ export class SignalingService {
           this.sendError(senderId, `Unknown action: ${message.action}`);
       }
     } catch (error) {
-      logError('[Online DAW] Error handling message:', { senderId, action: message.action, error: error instanceof Error ? error.message : String(error) });
+      logError('[Online Sequencer] Error handling message:', { senderId, action: message.action, error: error instanceof Error ? error.message : String(error) });
       this.sendError(senderId, error instanceof Error ? error.message : 'Unknown error');
     }
   }
@@ -296,16 +296,16 @@ export class SignalingService {
   private handleRegister(clientId: string, message: ClientToServerMessage): void {
     const { roomCode, data } = message;
     
-    logDebug(`[Online DAW] [handleRegister] Processing register clientId:${clientId} roomCode:${roomCode || 'none'} role:${data?.role || 'none'}`);
+    logDebug(`[Online Sequencer] [handleRegister] Processing register clientId:${clientId} roomCode:${roomCode || 'none'} role:${data?.role || 'none'}`);
     
     if (!data?.role) {
-      logDebug(`[Online DAW] [handleRegister] Error: role is missing clientId:${clientId}`);
+      logDebug(`[Online Sequencer] [handleRegister] Error: role is missing clientId:${clientId}`);
       this.sendError(clientId, 'Invalid register message: role is required');
       return;
     }
 
     if (data.role !== 'host') {
-      logDebug(`[Online DAW] [handleRegister] Error: Invalid role:${data.role} clientId:${clientId}`);
+      logDebug(`[Online Sequencer] [handleRegister] Error: Invalid role:${data.role} clientId:${clientId}`);
       this.sendError(clientId, 'Invalid role: register action requires host role');
       return;
     }
@@ -313,47 +313,47 @@ export class SignalingService {
     // roomCode가 없으면 hostId로 룸 찾기 (방 생성 직후 register 시나리오)
     let targetRoomCode = roomCode;
     if (!targetRoomCode) {
-      logDebug(`[Online DAW] [handleRegister] roomCode not provided, searching room by hostId:${clientId}`);
+      logDebug(`[Online Sequencer] [handleRegister] roomCode not provided, searching room by hostId:${clientId}`);
       
       // 모든 룸 확인
       const allRooms = roomService.getAllRooms();
-      logDebug(`[Online DAW] [handleRegister] All rooms: ${allRooms.map(r => r.roomCode).join(',')}`);
+      logDebug(`[Online Sequencer] [handleRegister] All rooms: ${allRooms.map(r => r.roomCode).join(',')}`);
       
       const room = roomService.getRoomByHostId(clientId);
       if (!room) {
-        logDebug(`[Online DAW] [handleRegister] Error: No active room found for hostId:${clientId}`);
+        logDebug(`[Online Sequencer] [handleRegister] Error: No active room found for hostId:${clientId}`);
         this.sendError(clientId, 'No active room found for this host. Please create a room first.');
         return;
       }
       targetRoomCode = room.roomCode;
-      logDebug(`[Online DAW] [handleRegister] Found room by hostId:${clientId} roomCode:${targetRoomCode}`);
+      logDebug(`[Online Sequencer] [handleRegister] Found room by hostId:${clientId} roomCode:${targetRoomCode}`);
     } else {
-      logDebug(`[Online DAW] [handleRegister] Using provided roomCode:${targetRoomCode}`);
+      logDebug(`[Online Sequencer] [handleRegister] Using provided roomCode:${targetRoomCode}`);
     }
 
     // 룸 존재 확인
     const room = roomService.getRoom(targetRoomCode);
     if (!room) {
-      logDebug(`[Online DAW] [handleRegister] Error: Room not found:${targetRoomCode}`);
+      logDebug(`[Online Sequencer] [handleRegister] Error: Room not found:${targetRoomCode}`);
       this.sendError(clientId, `Room not found: ${targetRoomCode}`);
       return;
     }
 
-    logDebug(`[Online DAW] [handleRegister] Room found:${room.roomCode} hostId:${room.hostId} clientId:${clientId}`);
+    logDebug(`[Online Sequencer] [handleRegister] Room found:${room.roomCode} hostId:${room.hostId} clientId:${clientId}`);
 
     // 호스트 권한 확인
     if (room.hostId !== clientId) {
-      logDebug(`[Online DAW] [handleRegister] Error: Unauthorized - hostId mismatch roomHostId:${room.hostId} clientId:${clientId}`);
+      logDebug(`[Online Sequencer] [handleRegister] Error: Unauthorized - hostId mismatch roomHostId:${room.hostId} clientId:${clientId}`);
       this.sendError(clientId, 'Unauthorized: You are not the host of this room');
       return;
     }
 
     // 룸에 호스트 등록
-    logDebug(`[Online DAW] [handleRegister] Registering host to room:${targetRoomCode} clientId:${clientId}`);
+    logDebug(`[Online Sequencer] [handleRegister] Registering host to room:${targetRoomCode} clientId:${clientId}`);
     this.registerClient(clientId, targetRoomCode, 'host');
 
     // 등록 성공 응답
-    logDebug(`[Online DAW] [handleRegister] Registration successful, sending response clientId:${clientId}`);
+    logDebug(`[Online Sequencer] [handleRegister] Registration successful, sending response clientId:${clientId}`);
     this.sendToClient(clientId, {
       action: 'registered',
       roomCode: targetRoomCode,
@@ -368,53 +368,53 @@ export class SignalingService {
    * 참가자 조인 처리
    */
   private handleJoin(clientId: string, message: ClientToServerMessage): void {
-    logDebug(`[Online DAW] Handling join for client:${clientId}`);
+    logDebug(`[Online Sequencer] Handling join for client:${clientId}`);
     const { roomCode, data } = message;
     
     // data가 없거나 role이 없으면 기본값으로 participant 설정
     const role = data?.role || 'participant';
     
     if (!roomCode) {
-      logDebug(`[Online DAW] Join failed: roomCode is required clientId:${clientId}`);
+      logDebug(`[Online Sequencer] Join failed: roomCode is required clientId:${clientId}`);
       this.sendError(clientId, 'Invalid join message: roomCode is required');
       return;
     }
 
     if (role !== 'participant') {
-      logDebug(`[Online DAW] Join failed: Invalid role:${role} clientId:${clientId}`);
+      logDebug(`[Online Sequencer] Join failed: Invalid role:${role} clientId:${clientId}`);
       this.sendError(clientId, 'Invalid role: join action requires participant role');
       return;
     }
 
     // 룸 정보 확인
-    logDebug(`[Online DAW] Looking up room:${roomCode} clientId:${clientId}`);
+    logDebug(`[Online Sequencer] Looking up room:${roomCode} clientId:${clientId}`);
     const room = roomService.getRoom(roomCode);
     
     if (!room) {
       const availableRooms = roomService.getAllRooms().map(r => r.roomCode).join(',');
-      logDebug(`[Online DAW] Join failed: Room not found:${roomCode} clientId:${clientId} availableRooms:${availableRooms}`);
+      logDebug(`[Online Sequencer] Join failed: Room not found:${roomCode} clientId:${clientId} availableRooms:${availableRooms}`);
       this.sendError(clientId, 'Room not found');
       return;
     }
     
-    logDebug(`[Online DAW] Room found for join:${roomCode} hostId:${room.hostId} allowJoin:${room.allowJoin} clientId:${clientId}`);
+    logDebug(`[Online Sequencer] Room found for join:${roomCode} hostId:${room.hostId} allowJoin:${room.allowJoin} clientId:${clientId}`);
 
     // 호스트가 자신의 룸에 게스트로 조인하는 것을 방지
     if (room.hostId === clientId) {
-      logDebug(`[Online DAW] Join failed: Host cannot join their own room clientId:${clientId} roomCode:${roomCode}`);
+      logDebug(`[Online Sequencer] Join failed: Host cannot join their own room clientId:${clientId} roomCode:${roomCode}`);
       this.sendError(clientId, 'Host cannot join their own room as a participant');
       return;
     }
 
     // 조인 허용 여부 확인
     if (!room.allowJoin) {
-      logDebug(`[Online DAW] Join failed: Room is not accepting new participants clientId:${clientId} roomCode:${roomCode}`);
+      logDebug(`[Online Sequencer] Join failed: Room is not accepting new participants clientId:${clientId} roomCode:${roomCode}`);
       this.sendError(clientId, 'Room is not accepting new participants');
       return;
     }
 
     // 룸에 참가자 등록
-    logDebug(`[Online DAW] Registering participant:${clientId} roomCode:${roomCode}`);
+    logDebug(`[Online Sequencer] Registering participant:${clientId} roomCode:${roomCode}`);
     this.registerClient(clientId, roomCode, 'participant');
 
     // 참가자 추가 (roomService)
@@ -422,11 +422,11 @@ export class SignalingService {
     const updatedRoom = roomService.getRoom(roomCode);
     
     if (updatedRoom) {
-      logDebug(`[Online DAW] Participant added to room:${roomCode} clientId:${clientId} participantCount:${updatedRoom.participants.length}`);
+      logDebug(`[Online Sequencer] Participant added to room:${roomCode} clientId:${clientId} participantCount:${updatedRoom.participants.length}`);
     }
 
     // 조인 성공 응답 (참가자에게)
-    logDebug(`[Online DAW] Sending joined response to client:${clientId} roomCode:${roomCode}`);
+    logDebug(`[Online Sequencer] Sending joined response to client:${clientId} roomCode:${roomCode}`);
     this.sendToClient(clientId, {
       action: 'joined',
       roomCode,
@@ -440,7 +440,7 @@ export class SignalingService {
 
     // Notify room about participant join
     if (updatedRoom) {
-      logDebug(`[Online DAW] Broadcasting participant join:${roomCode} participantId:${clientId}`);
+      logDebug(`[Online Sequencer] Broadcasting participant join:${roomCode} participantId:${clientId}`);
       this.broadcastToRoom(roomCode, {
         action: 'participant-joined',
         roomCode,
@@ -459,21 +459,21 @@ export class SignalingService {
   private handleSignaling(senderId: string, message: ClientToServerMessage): void {
     const sender = signalingStore.getConnection(senderId);
     if (!sender) {
-      logDebug(`[Online DAW] Signaling failed: Sender not found:${senderId}`);
+      logDebug(`[Online Sequencer] Signaling failed: Sender not found:${senderId}`);
       return;
     }
 
     const { roomCode, data } = message;
 
     if (!roomCode || !data?.type || !data?.to) {
-      logDebug(`[Online DAW] Signaling failed: Invalid message format senderId:${senderId} roomCode:${roomCode || 'none'} hasType:${!!data?.type} hasTo:${!!data?.to}`);
+      logDebug(`[Online Sequencer] Signaling failed: Invalid message format senderId:${senderId} roomCode:${roomCode || 'none'} hasType:${!!data?.type} hasTo:${!!data?.to}`);
       this.sendError(senderId, 'Invalid signaling message: roomCode, type, and to are required');
       return;
     }
 
     // 룸 코드 검증
     if (sender.roomCode !== roomCode) {
-      logDebug(`[Online DAW] Signaling failed: Sender not in room senderId:${senderId} senderRoom:${sender.roomCode} messageRoom:${roomCode}`);
+      logDebug(`[Online Sequencer] Signaling failed: Sender not in room senderId:${senderId} senderRoom:${sender.roomCode} messageRoom:${roomCode}`);
       this.sendError(senderId, 'Client is not in the specified room');
       return;
     }
@@ -481,14 +481,14 @@ export class SignalingService {
     // 수신자 찾기
     const receiver = signalingStore.getConnection(data.to);
     if (!receiver) {
-      logDebug(`[Online DAW] Signaling failed: Receiver not found senderId:${senderId} receiverId:${data.to}`);
+      logDebug(`[Online Sequencer] Signaling failed: Receiver not found senderId:${senderId} receiverId:${data.to}`);
       this.sendError(senderId, `Receiver ${data.to} not found`);
       return;
     }
 
     // 수신자의 룸 코드 확인
     if (receiver.roomCode !== roomCode) {
-      logDebug(`[Online DAW] Signaling failed: Receiver not in room senderId:${senderId} receiverId:${data.to} receiverRoom:${receiver.roomCode} messageRoom:${roomCode}`);
+      logDebug(`[Online Sequencer] Signaling failed: Receiver not in room senderId:${senderId} receiverId:${data.to} receiverRoom:${receiver.roomCode} messageRoom:${roomCode}`);
       this.sendError(senderId, `Receiver ${data.to} is not in room ${roomCode}`);
       return;
     }
@@ -508,9 +508,9 @@ export class SignalingService {
 
     if (receiver.ws.readyState === WebSocket.OPEN) {
       receiver.ws.send(JSON.stringify(signalingMessage));
-      logDebug(`[Online DAW] Signaling message forwarded from:${senderId} to:${data.to} type:${data.type} roomCode:${roomCode}`);
+      logDebug(`[Online Sequencer] Signaling message forwarded from:${senderId} to:${data.to} type:${data.type} roomCode:${roomCode}`);
     } else {
-      logDebug(`[Online DAW] Signaling failed: Receiver WebSocket not open receiverId:${data.to} readyState:${receiver.ws.readyState}`);
+      logDebug(`[Online Sequencer] Signaling failed: Receiver WebSocket not open receiverId:${data.to} readyState:${receiver.ws.readyState}`);
     }
   }
 
@@ -531,7 +531,7 @@ export class SignalingService {
           this.notifyRoomClosed(roomCode);
           // 룸 삭제
           roomService.deleteRoom(roomCode);
-          logDebug(`[Online DAW] Room deleted due to host leave:${roomCode} hostId:${clientId}`);
+          logDebug(`[Online Sequencer] Room deleted due to host leave:${roomCode} hostId:${clientId}`);
         }
       } else {
         // 참가자 제거 (roomService)
@@ -586,7 +586,7 @@ export class SignalingService {
         try {
           connection.ws.send(messageStr);
         } catch (error) {
-          logError(`[Online DAW] Failed to broadcast to client:${clientId}`, { error: error instanceof Error ? error.message : String(error) });
+          logError(`[Online Sequencer] Failed to broadcast to client:${clientId}`, { error: error instanceof Error ? error.message : String(error) });
           // 전송 실패 시 연결 정리
           signalingStore.removeConnection(clientId);
         }
@@ -609,7 +609,7 @@ export class SignalingService {
       try {
         connection.ws.send(JSON.stringify(message));
       } catch (error) {
-        logError(`[Online DAW] Failed to send message to client:${clientId}`, { error: error instanceof Error ? error.message : String(error) });
+        logError(`[Online Sequencer] Failed to send message to client:${clientId}`, { error: error instanceof Error ? error.message : String(error) });
         // 전송 실패 시 연결 정리
         signalingStore.removeConnection(clientId);
       }
@@ -636,7 +636,7 @@ export class SignalingService {
         this.notifyRoomClosed(roomCode);
         // 룸 삭제
         roomService.deleteRoom(roomCode);
-        logDebug(`[Online DAW] Room deleted due to host connection closed:${roomCode} hostId:${room.hostId}`);
+        logDebug(`[Online Sequencer] Room deleted due to host connection closed:${roomCode} hostId:${room.hostId}`);
       }
     }
     

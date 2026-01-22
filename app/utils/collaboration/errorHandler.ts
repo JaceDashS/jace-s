@@ -86,7 +86,7 @@ export function logError(
   const errorMessage = error instanceof Error ? error.message : String(error);
   const errorStack = error instanceof Error ? error.stack : undefined;
   
-  console.error(`[Online DAW] [ERROR] [${context}]`, {
+  console.error(`[Online Sequencer] [ERROR] [${context}]`, {
     message: errorMessage,
     stack: errorStack,
     ...additionalInfo,
