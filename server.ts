@@ -10,6 +10,7 @@ import { config } from 'dotenv';
 import { resolve } from 'path';
 import { signalingService } from './app/services/collaboration/signalingService';
 import { roomService } from './app/services/collaboration/roomService';
+import { getAllowedOriginsFromEnv } from './app/utils/corsUtils';
 
 // 환경 변수 로드 (개발 환경일 때 .env.development, 프로덕션일 때 .env.production)
 const nodeEnv = process.env.NODE_ENV || 'development';
@@ -30,25 +31,33 @@ console.log('=================================');
 
 const app = next({ dev, hostname, port });
 const handle = app.getRequestHandler();
+const { origins: allowedOrigins, isDevMode } = getAllowedOriginsFromEnv();
 
 app.prepare().then(() => {
   const server = createServer((req, res) => {
-    // 개발 환경에서 CORS 전체 허용
-    if (dev) {
-      const origin = req.headers.origin;
-      if (origin) {
-        res.setHeader('Access-Control-Allow-Origin', origin);
-        res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
-        res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, X-Forwarded-For, X-Origin, X-Client-Id, X-Host-Id');
-        res.setHeader('Access-Control-Allow-Credentials', 'true');
-      }
-      
-      // OPTIONS 요청 (preflight) 처리
-      if (req.method === 'OPTIONS') {
-        res.writeHead(200);
+    const originHeader = req.headers.origin;
+    const origin = Array.isArray(originHeader) ? originHeader[0] : originHeader;
+    const isAllowedOrigin = !!origin && (isDevMode || allowedOrigins.includes(origin));
+
+    if (origin && isAllowedOrigin) {
+      res.setHeader('Access-Control-Allow-Origin', origin);
+      res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
+      res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, X-Forwarded-For, X-Origin, X-Client-Id, X-Host-Id');
+      res.setHeader('Access-Control-Allow-Credentials', 'true');
+      res.setHeader('Vary', 'Origin');
+    }
+
+    // OPTIONS 요청 (preflight) 처리
+    if (req.method === 'OPTIONS') {
+      if (origin && !isAllowedOrigin) {
+        res.writeHead(403);
         res.end();
         return;
       }
+
+      res.writeHead(204);
+      res.end();
+      return;
     }
     
     handle(req, res);
@@ -61,6 +70,16 @@ app.prepare().then(() => {
   });
 
   wss.on('connection', (ws: WebSocket, req) => {
+    const originHeader = req.headers.origin;
+    const origin = Array.isArray(originHeader) ? originHeader[0] : originHeader;
+    const isAllowedOrigin = !origin || isDevMode || allowedOrigins.includes(origin);
+
+    if (!isAllowedOrigin) {
+      console.log('[Online DAW] WebSocket connection rejected: origin not allowed', { origin });
+      ws.close(1008, 'origin not allowed');
+      return;
+    }
+
     console.log('[Online DAW] WebSocket connection attempt');
     // 클라이언트 ID 추출 (쿼리 파라미터)
     const url = new URL(req.url || '', `http://${req.headers.host}`);

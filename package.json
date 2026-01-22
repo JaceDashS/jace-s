@@ -16,6 +16,7 @@
     "test:phase1:websocket": "node scripts/test-phase1-websocket.mjs",
     "test:phase1": "npm run test:phase1:api && npm run test:phase1:websocket",
     "test:phase3": "node scripts/test-phase3.mjs",
+    "test:websocket:prod": "node scripts/test-websocket-prod.mjs",
     "clean": "if exist .next rmdir /s /q .next && if exist node_modules\\.cache rmdir /s /q node_modules\\.cache",
     "clean:unix": "rm -rf .next node_modules/.cache",
     "docker:build:prod": "node scripts/docker-build-with-env.mjs .env.production --target runner -t jace-s:latest .",

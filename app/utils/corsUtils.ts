@@ -17,7 +17,7 @@ function extractOrigin(url: string | null): string | null {
 /**
  * 환경 변수에서 모든 CORS 허용 origin을 찾아 목록과 상세 정보 가져오기
  */
-function getAllowedOriginsFromEnv(): {
+export function getAllowedOriginsFromEnv(): {
   origins: string[];
   envEntries: Array<{ key: string; urls: string[]; origins: string[] }>;
   corsMode: string | null;
@@ -223,7 +223,7 @@ export async function setCorsHeaders(
   if (isDevMode || allowedOrigins.includes(requestOrigin)) {
     response.headers.set('Access-Control-Allow-Origin', requestOrigin);
     response.headers.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
-    response.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, X-Forwarded-For, X-Origin');
+    response.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, X-Forwarded-For, X-Origin, X-Client-Id, X-Host-Id');
     response.headers.set('Access-Control-Allow-Credentials', 'true');
     logDebug('[CORS] CORS headers set for origin:', { requestOrigin });
   } else {

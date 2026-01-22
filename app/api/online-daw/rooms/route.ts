@@ -6,7 +6,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { roomService } from '@/app/services/collaboration/roomService';
 import { signalingService } from '@/app/services/collaboration/signalingService';
 import type { CreateRoomRequest } from '@/app/types/collaboration/room';
-import { createErrorResponse, createSuccessResponse, logError, ErrorCode, createValidationError } from '@/app/utils/collaboration/errorHandler';
+import { createErrorResponse, logError, ErrorCode, createValidationError } from '@/app/utils/collaboration/errorHandler';
 
 /**
  * GET /api/online-daw/rooms

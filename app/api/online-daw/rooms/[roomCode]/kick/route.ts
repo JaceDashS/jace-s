@@ -6,7 +6,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { roomService } from '@/app/services/collaboration/roomService';
 import { isValidRoomCode } from '@/app/utils/collaboration/roomCodeGenerator';
 import type { KickParticipantRequest, KickParticipantResponse } from '@/app/types/collaboration/room';
-import { createErrorResponse, createSuccessResponse, logError, ErrorCode } from '@/app/utils/collaboration/errorHandler';
+import { createErrorResponse, logError, ErrorCode } from '@/app/utils/collaboration/errorHandler';
 
 /**
  * POST /api/online-daw/rooms/:roomCode/kick

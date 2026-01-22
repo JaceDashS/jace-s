@@ -99,7 +99,6 @@ class RoomStore {
 
 // 전역 변수로 roomStore 공유 (Next.js 모듈 시스템 문제 해결)
 declare global {
-  // eslint-disable-next-line no-var
   var __roomStore: RoomStore | undefined;
 }
 
@@ -391,7 +390,6 @@ export class RoomService {
 
 // 전역 변수로 roomService 공유 (Next.js 모듈 시스템 문제 해결)
 declare global {
-  // eslint-disable-next-line no-var
   var __roomService: RoomService | undefined;
 }
 
