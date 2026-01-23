@@ -1,18 +1,17 @@
 /**
- * 조인 허용 활성화 REST API 엔드포인트
+ * 참가자 강퇴 REST API 엔드포인트
  */
 
 import { NextRequest, NextResponse } from 'next/server';
 import { roomService } from '@/app/services/collaboration/roomService';
 import { isValidRoomCode } from '@/app/utils/collaboration/roomCodeGenerator';
-import type { AllowJoinRequest, AllowJoinResponse } from '@/app/types/collaboration/room';
+import type { KickParticipantRequest, KickParticipantResponse } from '@/app/types/collaboration/room';
 import { createErrorResponse, logError, ErrorCode } from '@/app/utils/collaboration/errorHandler';
 import { withApiLogging } from '@/app/utils/apiLogger';
-import { logDebug } from '@/app/utils/logging';
 
 /**
- * POST /api/online-daw/rooms/:roomCode/allow-join
- * 조인 허용 활성화 (호스트가 "Allow Join" 클릭 시)
+ * POST /api/online-sequencer/rooms/:roomCode/kick
+ * 참가자 강퇴 (호스트가 강퇴 버튼 클릭 시)
  */
 export async function POST(
   request: NextRequest,
@@ -20,13 +19,12 @@ export async function POST(
 ) {
   const resolvedParams = await params;
   const roomCode = resolvedParams.roomCode;
-  return withApiLogging(request, `/api/online-daw/rooms/${roomCode}/allow-join`, async () => {
-    let duration: number | undefined;
+  return withApiLogging(request, `/api/online-sequencer/rooms/${roomCode}/kick`, async () => {
+    let participantId: string | undefined;
     try {
-    const body: AllowJoinRequest = await request.json();
-    duration = body.duration || 60;
+    const body: KickParticipantRequest = await request.json();
+    participantId = body.participantId;
     const clientId = request.headers.get('x-client-id') || undefined;
-    logDebug(`[Online Sequencer] [POST /api/online-daw/rooms/:roomCode/allow-join] Allow join request received:${roomCode} duration:${duration} clientId:${clientId || 'none'}`);
 
     // 룸 코드 형식 검증
     if (!isValidRoomCode(roomCode)) {
@@ -38,11 +36,11 @@ export async function POST(
       return NextResponse.json(response, { status });
     }
 
-    // duration 검증
-    if (typeof duration !== 'number' || duration <= 0 || duration > 3600) {
+    // participantId 검증
+    if (!participantId || typeof participantId !== 'string') {
       const { response, status } = createErrorResponse(
-        'Invalid duration (must be between 1 and 3600 seconds)',
-        ErrorCode.INVALID_DURATION,
+        'participantId is required and must be a string',
+        ErrorCode.INVALID_PARTICIPANT_ID,
         400
       );
       return NextResponse.json(response, { status });
@@ -62,41 +60,39 @@ export async function POST(
     // 호스트 권한 확인
     if (clientId && room.hostId !== clientId) {
       const { response, status } = createErrorResponse(
-        'Unauthorized: Only the host can allow join',
+        'Unauthorized: Only the host can kick participants',
         ErrorCode.UNAUTHORIZED,
         403
       );
       return NextResponse.json(response, { status });
     }
 
-    // 조인 허용 활성화
-    roomService.allowJoin(roomCode, duration);
-    const expiresAt = Date.now() + duration * 1000;
-    logDebug(`[Online Sequencer] Allow join activated:${roomCode} duration:${duration} expiresAt:${expiresAt}`);
-
-    // 업데이트된 룸 정보 조회
-    const updatedRoom = roomService.getRoom(roomCode);
-    if (!updatedRoom) {
-      logDebug(`[Online Sequencer] Room not found after allowJoin:${roomCode}`);
-      return NextResponse.json(
-        {
-          success: false,
-          error: 'Room not found'
-        },
-        { status: 404 }
+    // 참가자 존재 확인
+    if (!room.participants.includes(participantId)) {
+      const { response, status } = createErrorResponse(
+        'Participant not found in room',
+        ErrorCode.PARTICIPANT_NOT_FOUND,
+        404
       );
+      return NextResponse.json(response, { status });
     }
 
-    const response: AllowJoinResponse = {
-      success: true,
-      allowJoin: updatedRoom.allowJoin,
-      allowJoinExpiresAt: updatedRoom.allowJoinExpiresAt!
-    };
+    // 참가자 강퇴
+    roomService.kickParticipant(roomCode, participantId);
 
-      logDebug(`[Online Sequencer] Allow join response:${roomCode} allowJoin:${response.allowJoin} expiresAt:${response.allowJoinExpiresAt}`);
+    // 강퇴된 참가자에게 'kicked' 메시지 전송은 WebSocket을 통해 처리
+    // (SignalingService에서 처리)
+    // Note: signalingService는 서버에서만 사용 가능하므로 여기서는 직접 호출하지 않음
+    // WebSocket 서버에서 처리됨
+
+      const response: KickParticipantResponse = {
+        success: true,
+        message: 'Participant kicked'
+      };
+
       return NextResponse.json(response);
     } catch (error) {
-      logError('POST /api/online-daw/rooms/:roomCode/allow-join', error, { roomCode, duration });
+      logError('POST /api/online-sequencer/rooms/:roomCode/kick', error, { roomCode, participantId });
       
       if (error instanceof Error && error.message === 'Room not found') {
         const { response, status } = createErrorResponse(
@@ -108,7 +104,7 @@ export async function POST(
       }
 
       const { response, status } = createErrorResponse(
-        'Failed to allow join',
+        'Failed to kick participant',
         ErrorCode.INTERNAL_ERROR,
         500
       );

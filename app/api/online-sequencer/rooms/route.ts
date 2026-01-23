@@ -11,11 +11,11 @@ import { withApiLogging } from '@/app/utils/apiLogger';
 import { logDebug } from '@/app/utils/logging';
 
 /**
- * GET /api/online-daw/rooms
+ * GET /api/online-sequencer/rooms
  * 모든 룸 정보 조회 (디버깅/모니터링용)
  */
 export async function GET(request: NextRequest) {
-  return withApiLogging(request, '/api/online-daw/rooms', async () => {
+  return withApiLogging(request, '/api/online-sequencer/rooms', async () => {
     try {
     const rooms = roomService.getAllRooms();
     const now = Date.now();
@@ -56,7 +56,7 @@ export async function GET(request: NextRequest) {
         timestamp: now
       });
     } catch (error) {
-      logError('GET /api/online-daw/rooms', error);
+      logError('GET /api/online-sequencer/rooms', error);
       const { response, status } = createErrorResponse(
         'Failed to get rooms',
         ErrorCode.INTERNAL_ERROR,
@@ -68,16 +68,16 @@ export async function GET(request: NextRequest) {
 }
 
 /**
- * POST /api/online-daw/rooms
+ * POST /api/online-sequencer/rooms
  * 룸 생성 (호스트가 "Host" 클릭 시)
  */
 export async function POST(request: NextRequest) {
-  return withApiLogging(request, '/api/online-daw/rooms', async () => {
+  return withApiLogging(request, '/api/online-sequencer/rooms', async () => {
     let hostId: string | undefined;
     try {
     const body: CreateRoomRequest = await request.json();
     hostId = body.hostId;
-    logDebug(`[Online Sequencer] [POST /api/online-daw/rooms] Room creation request received hostId:${hostId}`);
+    logDebug(`[Online Sequencer] [POST /api/online-sequencer/rooms] Room creation request received hostId:${hostId}`);
 
     // 입력 검증
     if (!hostId || typeof hostId !== 'string') {
@@ -109,7 +109,7 @@ export async function POST(request: NextRequest) {
         createdAt: room.createdAt
       });
     } catch (error) {
-      logError('POST /api/online-daw/rooms', error, hostId ? { hostId } : undefined);
+      logError('POST /api/online-sequencer/rooms', error, hostId ? { hostId } : undefined);
       
       if (error instanceof Error && error.message === 'No available room codes') {
         const { response, status } = createErrorResponse(

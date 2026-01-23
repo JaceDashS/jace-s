@@ -11,7 +11,7 @@ import { withApiLogging } from '@/app/utils/apiLogger';
 import { logDebug } from '@/app/utils/logging';
 
 /**
- * GET /api/online-daw/rooms/:roomCode
+ * GET /api/online-sequencer/rooms/:roomCode
  * 룸 조회 (참가자가 조인 시)
  */
 export async function GET(
@@ -20,10 +20,10 @@ export async function GET(
 ) {
   const resolvedParams = await params;
   const roomCode = resolvedParams.roomCode;
-  return withApiLogging(request, `/api/online-daw/rooms/${roomCode}`, async () => {
+  return withApiLogging(request, `/api/online-sequencer/rooms/${roomCode}`, async () => {
     try {
     const clientId = request.headers.get('x-client-id') || undefined;
-    logDebug(`[Online Sequencer] [GET /api/online-daw/rooms/:roomCode] Room lookup request:${roomCode} clientId:${clientId || 'none'}`);
+    logDebug(`[Online Sequencer] [GET /api/online-sequencer/rooms/:roomCode] Room lookup request:${roomCode} clientId:${clientId || 'none'}`);
 
     // 룸 코드 형식 검증
     if (!isValidRoomCode(roomCode)) {
@@ -88,7 +88,7 @@ export async function GET(
       logDebug(`[Online Sequencer] Room info returned:${roomCode} hostId:${roomInfo.hostId} status:${roomInfo.status}`);
       return NextResponse.json(roomInfo);
     } catch (error) {
-      logError('GET /api/online-daw/rooms/:roomCode', error, { roomCode });
+      logError('GET /api/online-sequencer/rooms/:roomCode', error, { roomCode });
       const { response, status } = createErrorResponse(
         'Failed to get room',
         ErrorCode.INTERNAL_ERROR,
@@ -100,7 +100,7 @@ export async function GET(
 }
 
 /**
- * DELETE /api/online-daw/rooms/:roomCode
+ * DELETE /api/online-sequencer/rooms/:roomCode
  * 룸 삭제 (호스트가 "Stop Hosting" 클릭 시, 또는 6시간 후 자동)
  */
 export async function DELETE(
@@ -109,7 +109,7 @@ export async function DELETE(
 ) {
   const resolvedParams = await params;
   const roomCode = resolvedParams.roomCode;
-  return withApiLogging(request, `/api/online-daw/rooms/${roomCode}`, async () => {
+  return withApiLogging(request, `/api/online-sequencer/rooms/${roomCode}`, async () => {
     try {
     const clientId = request.headers.get('x-client-id') || undefined;
 
@@ -145,7 +145,7 @@ export async function DELETE(
     }
 
     // 룸 삭제
-    logDebug(`[Online Sequencer] [DELETE /api/online-daw/rooms/:roomCode] Room deletion requested:${roomCode} clientId:${clientId || 'none'}`);
+    logDebug(`[Online Sequencer] [DELETE /api/online-sequencer/rooms/:roomCode] Room deletion requested:${roomCode} clientId:${clientId || 'none'}`);
     roomService.deleteRoom(roomCode);
     logDebug(`[Online Sequencer] Room deleted:${roomCode}`);
 
@@ -154,7 +154,7 @@ export async function DELETE(
         roomCode
       });
     } catch (error) {
-      logError('DELETE /api/online-daw/rooms/:roomCode', error, { roomCode });
+      logError('DELETE /api/online-sequencer/rooms/:roomCode', error, { roomCode });
       const { response, status } = createErrorResponse(
         'Failed to delete room',
         ErrorCode.INTERNAL_ERROR,
