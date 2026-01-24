@@ -151,6 +151,7 @@ interface RightCardContentProps {
   photoCardFade: number;
   onCertificationsLoaded?: () => void;
   onHomePhotosLoaded?: () => void;
+  onHomePhotosProgress?: (completed: number, total: number) => void;
 }
 
 export default function RightCardContent({ 
@@ -158,6 +159,7 @@ export default function RightCardContent({
   photoCardFade,
   onCertificationsLoaded,
   onHomePhotosLoaded,
+  onHomePhotosProgress,
 }: RightCardContentProps) {
   const [certifications, setCertifications] = useState<CertificationData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -288,7 +290,12 @@ export default function RightCardContent({
 
   const photoGridContent = (
     <div className={styles.container}>
-      <HomePhotoGrid opacity={photoCardFade} photoCardFade={photoCardFade} onLoaded={onHomePhotosLoaded} />
+      <HomePhotoGrid
+        opacity={photoCardFade}
+        photoCardFade={photoCardFade}
+        onLoaded={onHomePhotosLoaded}
+        onProgress={onHomePhotosProgress}
+      />
       <AppPhotoGrid opacity={1 - photoCardFade} photoCardFade={photoCardFade} />
     </div>
   );

@@ -6,10 +6,11 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import type { Language } from '../../types/mainContent';
 import CommentSection from './CommentSection';
-import { fetchAssetsManifest, getCertifications, createImageRetryHandler } from '../../utils/assetUtils';
+import { fetchAssetsManifest, getCertifications } from '../../utils/assetUtils';
 import type { CertificationData } from '../../types/assets';
 import { BUTTON_MAX_FACTOR, CARD_WIDTH, BUTTON_PADDING, BUTTON_FONT } from '../../constants/buttonConstants';
 import { isInMarker1, isInMarker2 } from '../../constants/markerConstants';
+import ImageWithLoader from '../ImageWithLoader';
 import styles from './CardBack.module.css';
 
 interface CardBackProps {
@@ -182,20 +183,6 @@ export default function CardBack({
                 
                 if (cert) {
                   // 자격증이 있는 경우
-                  const handleCertImageError = cert.iconUrl
-                    ? createImageRetryHandler(
-                        cert.iconUrl,
-                        3,
-                        (img) => {
-                          // 최종 실패 시 기본 아이콘 표시
-                          img.style.display = 'none';
-                          if (img.parentElement) {
-                            img.parentElement.innerHTML = '<span class="text-2xl">📜</span>';
-                          }
-                        }
-                      )
-                    : undefined;
-
                   return (
                     <button
                       key={cert.key}
@@ -207,11 +194,18 @@ export default function CardBack({
                       className={styles.certItem}
                     >
                       {cert.iconUrl ? (
-                        <img
+                        <ImageWithLoader
                           src={cert.iconUrl}
                           alt={cert.key}
                           className={styles.certImage}
-                          onError={handleCertImageError}
+                          loadingComponent={
+                            <div className={styles.loadingItem} style={{ width: '100%', height: '100%' }}>
+                              <span className={styles.loadingText}>Loading...</span>
+                            </div>
+                          }
+                          fallback={
+                            <span className={styles.certEmoji}>📜</span>
+                          }
                         />
                       ) : (
                         <span className={styles.certEmoji}>📜</span>

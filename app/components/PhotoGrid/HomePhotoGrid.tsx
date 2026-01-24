@@ -3,24 +3,42 @@
  */
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
-import { fetchAssetsManifest, getRandomHomePhotos, createImageRetryHandler } from '../../utils/assetUtils';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import { fetchAssetsManifest, getRandomHomePhotos } from '../../utils/assetUtils';
+import ImageWithLoader from '../ImageWithLoader';
 import styles from './HomePhotoGrid.module.css';
 
 const shouldLog = process.env.NEXT_PUBLIC_DEBUG_LOGS === 'true';
+const DEFAULT_MAX_WAIT_MS = 12000;
+
+type SlotKey = 'large0' | 'large1' | 'small0' | 'small1' | 'small2' | 'small3';
+type LoadState = 'loading' | 'loaded' | 'failed';
 
 interface HomePhotoGridProps {
   opacity: number;
   photoCardFade: number;
   onLoaded?: () => void;
+  maxWaitMs?: number;
+  onProgress?: (completed: number, total: number) => void;
 }
 
-export default function HomePhotoGrid({ opacity, photoCardFade, onLoaded }: HomePhotoGridProps) {
+export default function HomePhotoGrid({
+  opacity,
+  photoCardFade,
+  onLoaded,
+  maxWaitMs = DEFAULT_MAX_WAIT_MS,
+  onProgress,
+}: HomePhotoGridProps) {
   const [photos, setPhotos] = useState<{ large: string[]; small: string[] }>({
     large: [],
     small: [],
   });
   const [isLoading, setIsLoading] = useState(true);
+  const [manifestLoaded, setManifestLoaded] = useState(false);
+  const [slotStates, setSlotStates] = useState<Partial<Record<SlotKey, LoadState>>>({});
+  const notifiedRef = useRef(false);
+  const forceTimerRef = useRef<number | null>(null);
+  const slotUrlsRef = useRef<Partial<Record<SlotKey, string>>>({});
 
   useEffect(() => {
     let cancelled = false;
@@ -55,7 +73,7 @@ export default function HomePhotoGrid({ opacity, photoCardFade, onLoaded }: Home
         if (!cancelled) {
           setIsLoading(false);
           // home photos 로딩 완료 알림
-          onLoaded?.();
+          setManifestLoaded(true);
         }
       }
     }
@@ -64,7 +82,7 @@ export default function HomePhotoGrid({ opacity, photoCardFade, onLoaded }: Home
     return () => {
       cancelled = true;
     };
-  }, [onLoaded]);
+  }, []);
 
   // 랜덤 배치: large 2개와 small 4개를 각각 랜덤 순서로 배치
   // useMemo로 한 번만 계산하여 리렌더링 시에도 동일한 배치 유지
@@ -96,43 +114,119 @@ export default function HomePhotoGrid({ opacity, photoCardFade, onLoaded }: Home
     };
   }, [photos.large, photos.small]);
 
-  // 각 이미지에 대한 재시도 핸들러 생성
-  const handleLargeSlot0Error = useMemo(() => 
-    largeSlot0 ? createImageRetryHandler(largeSlot0, 3, (img) => {
-      img.style.display = 'none';
-    }) : undefined,
-    [largeSlot0]
+  const slots: { key: SlotKey; url: string }[] = useMemo(
+    () => [
+      { key: 'large0', url: largeSlot0 },
+      { key: 'large1', url: largeSlot1 },
+      { key: 'small0', url: smallSlot0 },
+      { key: 'small1', url: smallSlot1 },
+      { key: 'small2', url: smallSlot2 },
+      { key: 'small3', url: smallSlot3 },
+    ],
+    [largeSlot0, largeSlot1, smallSlot0, smallSlot1, smallSlot2, smallSlot3],
   );
-  const handleLargeSlot1Error = useMemo(() => 
-    largeSlot1 ? createImageRetryHandler(largeSlot1, 3, (img) => {
-      img.style.display = 'none';
-    }) : undefined,
-    [largeSlot1]
-  );
-  const handleSmallSlot0Error = useMemo(() => 
-    smallSlot0 ? createImageRetryHandler(smallSlot0, 3, (img) => {
-      img.style.display = 'none';
-    }) : undefined,
-    [smallSlot0]
-  );
-  const handleSmallSlot1Error = useMemo(() => 
-    smallSlot1 ? createImageRetryHandler(smallSlot1, 3, (img) => {
-      img.style.display = 'none';
-    }) : undefined,
-    [smallSlot1]
-  );
-  const handleSmallSlot2Error = useMemo(() => 
-    smallSlot2 ? createImageRetryHandler(smallSlot2, 3, (img) => {
-      img.style.display = 'none';
-    }) : undefined,
-    [smallSlot2]
-  );
-  const handleSmallSlot3Error = useMemo(() => 
-    smallSlot3 ? createImageRetryHandler(smallSlot3, 3, (img) => {
-      img.style.display = 'none';
-    }) : undefined,
-    [smallSlot3]
-  );
+
+  useEffect(() => {
+    setSlotStates((prev) => {
+      const next: Partial<Record<SlotKey, LoadState>> = {};
+      for (const slot of slots) {
+        if (!slot.url) {
+          continue;
+        }
+        const prevUrl = slotUrlsRef.current[slot.key];
+        if (prevUrl === slot.url && prev[slot.key]) {
+          next[slot.key] = prev[slot.key];
+        } else {
+          next[slot.key] = 'loading';
+        }
+      }
+      return next;
+    });
+
+    slotUrlsRef.current = slots.reduce<Partial<Record<SlotKey, string>>>((acc, slot) => {
+      if (slot.url) {
+        acc[slot.key] = slot.url;
+      }
+      return acc;
+    }, {});
+  }, [slots]);
+
+  const markLoaded = useCallback((slotKey: SlotKey) => {
+    setSlotStates((prev) => {
+      if (prev[slotKey] === 'loaded') {
+        return prev;
+      }
+      return { ...prev, [slotKey]: 'loaded' };
+    });
+  }, []);
+
+  const markFailed = useCallback((slotKey: SlotKey) => {
+    setSlotStates((prev) => {
+      if (prev[slotKey] === 'failed') {
+        return prev;
+      }
+      return { ...prev, [slotKey]: 'failed' };
+    });
+  }, []);
+
+  const notifyLoaded = useCallback(() => {
+    if (notifiedRef.current) {
+      return;
+    }
+    notifiedRef.current = true;
+    if (forceTimerRef.current !== null) {
+      window.clearTimeout(forceTimerRef.current);
+      forceTimerRef.current = null;
+    }
+    onLoaded?.();
+  }, [onLoaded]);
+
+  const totalSlots = slots.filter((slot) => Boolean(slot.url)).length;
+  const completedCount = slots.reduce((count, slot) => {
+    if (!slot.url) {
+      return count;
+    }
+    const state = slotStates[slot.key];
+    if (state === 'loaded' || state === 'failed') {
+      return count + 1;
+    }
+    return count;
+  }, 0);
+
+  const allImagesLoaded =
+    totalSlots > 0 &&
+    slots.every((slot) => Boolean(slot.url) && slotStates[slot.key] === 'loaded');
+
+  useEffect(() => {
+    onProgress?.(completedCount, totalSlots);
+  }, [completedCount, totalSlots, onProgress]);
+
+  useEffect(() => {
+    if (allImagesLoaded) {
+      notifyLoaded();
+    }
+  }, [allImagesLoaded, notifyLoaded]);
+
+  useEffect(() => {
+    if (!manifestLoaded || notifiedRef.current) {
+      return;
+    }
+
+    if (forceTimerRef.current !== null) {
+      return;
+    }
+
+    forceTimerRef.current = window.setTimeout(() => {
+      notifyLoaded();
+    }, maxWaitMs);
+
+    return () => {
+      if (forceTimerRef.current !== null) {
+        window.clearTimeout(forceTimerRef.current);
+        forceTimerRef.current = null;
+      }
+    };
+  }, [manifestLoaded, maxWaitMs, notifyLoaded]);
 
   return (
     <div
@@ -149,11 +243,22 @@ export default function HomePhotoGrid({ opacity, photoCardFade, onLoaded }: Home
             <span className={styles.loadingText}>Loading...</span>
           </div>
         ) : largeSlot0 ? (
-          <img 
-            src={largeSlot0} 
-            alt="Home photo large" 
+          <ImageWithLoader
+            src={largeSlot0}
+            alt="Home photo large"
             className={styles.photoImage}
-            onError={handleLargeSlot0Error}
+            onLoad={() => markLoaded('large0')}
+            onFinalError={() => markFailed('large0')}
+            loadingComponent={
+              <div className={`${styles.loadingContainer} ${styles.loadingPurple}`}>
+                <span className={styles.loadingText}>Loading...</span>
+              </div>
+            }
+            fallback={
+               <div className={`${styles.placeholderContainer} ${styles.loadingPurple}`}>
+                <span className={styles.placeholderText}>Failed</span>
+              </div>
+            }
           />
         ) : (
           <div className={`${styles.placeholderContainer} ${styles.loadingPurple}`}>
@@ -170,11 +275,22 @@ export default function HomePhotoGrid({ opacity, photoCardFade, onLoaded }: Home
               <span className={styles.loadingTextSmall}>Loading...</span>
             </div>
           ) : smallSlot0 ? (
-            <img 
-              src={smallSlot0} 
-              alt="Home photo small" 
+            <ImageWithLoader
+              src={smallSlot0}
+              alt="Home photo small"
               className={styles.photoImage}
-              onError={handleSmallSlot0Error}
+              onLoad={() => markLoaded('small0')}
+              onFinalError={() => markFailed('small0')}
+              loadingComponent={
+                <div className={`${styles.loadingContainer} ${styles.loadingBlue}`}>
+                  <span className={styles.loadingTextSmall}>Loading...</span>
+                </div>
+              }
+              fallback={
+                <div className={`${styles.placeholderContainer} ${styles.loadingBlue}`}>
+                  <span className={styles.placeholderTextSmall}>Failed</span>
+                </div>
+              }
             />
           ) : (
             <div className={`${styles.placeholderContainer} ${styles.loadingBlue}`}>
@@ -188,11 +304,22 @@ export default function HomePhotoGrid({ opacity, photoCardFade, onLoaded }: Home
               <span className={styles.loadingTextSmall}>Loading...</span>
             </div>
           ) : smallSlot1 ? (
-            <img 
-              src={smallSlot1} 
-              alt="Home photo small" 
+            <ImageWithLoader
+              src={smallSlot1}
+              alt="Home photo small"
               className={styles.photoImage}
-              onError={handleSmallSlot1Error}
+              onLoad={() => markLoaded('small1')}
+              onFinalError={() => markFailed('small1')}
+              loadingComponent={
+                <div className={`${styles.loadingContainer} ${styles.loadingPink}`}>
+                  <span className={styles.loadingTextSmall}>Loading...</span>
+                </div>
+              }
+              fallback={
+                <div className={`${styles.placeholderContainer} ${styles.loadingPink}`}>
+                  <span className={styles.placeholderTextSmall}>Failed</span>
+                </div>
+              }
             />
           ) : (
             <div className={`${styles.placeholderContainer} ${styles.loadingPink}`}>
@@ -210,11 +337,22 @@ export default function HomePhotoGrid({ opacity, photoCardFade, onLoaded }: Home
               <span className={styles.loadingTextSmall}>Loading...</span>
             </div>
           ) : smallSlot2 ? (
-            <img 
-              src={smallSlot2} 
-              alt="Home photo small" 
+            <ImageWithLoader
+              src={smallSlot2}
+              alt="Home photo small"
               className={styles.photoImage}
-              onError={handleSmallSlot2Error}
+              onLoad={() => markLoaded('small2')}
+              onFinalError={() => markFailed('small2')}
+              loadingComponent={
+                 <div className={`${styles.loadingContainer} ${styles.loadingGreen}`}>
+                  <span className={styles.loadingTextSmall}>Loading...</span>
+                </div>
+              }
+              fallback={
+                <div className={`${styles.placeholderContainer} ${styles.loadingGreen}`}>
+                  <span className={styles.placeholderTextSmall}>Failed</span>
+                </div>
+              }
             />
           ) : (
             <div className={`${styles.placeholderContainer} ${styles.loadingGreen}`}>
@@ -228,11 +366,22 @@ export default function HomePhotoGrid({ opacity, photoCardFade, onLoaded }: Home
               <span className={styles.loadingTextSmall}>Loading...</span>
             </div>
           ) : smallSlot3 ? (
-            <img 
-              src={smallSlot3} 
-              alt="Home photo small" 
+             <ImageWithLoader
+              src={smallSlot3}
+              alt="Home photo small"
               className={styles.photoImage}
-              onError={handleSmallSlot3Error}
+              onLoad={() => markLoaded('small3')}
+              onFinalError={() => markFailed('small3')}
+              loadingComponent={
+                <div className={`${styles.loadingContainer} ${styles.loadingYellow}`}>
+                  <span className={styles.loadingTextSmall}>Loading...</span>
+                </div>
+              }
+              fallback={
+                <div className={`${styles.placeholderContainer} ${styles.loadingYellow}`}>
+                  <span className={styles.placeholderTextSmall}>Failed</span>
+                </div>
+              }
             />
           ) : (
             <div className={`${styles.placeholderContainer} ${styles.loadingYellow}`}>
@@ -249,11 +398,22 @@ export default function HomePhotoGrid({ opacity, photoCardFade, onLoaded }: Home
             <span className={styles.loadingText}>Loading...</span>
           </div>
         ) : largeSlot1 ? (
-          <img 
-            src={largeSlot1} 
-            alt="Home photo large" 
+          <ImageWithLoader
+            src={largeSlot1}
+            alt="Home photo large"
             className={styles.photoImage}
-            onError={handleLargeSlot1Error}
+            onLoad={() => markLoaded('large1')}
+            onFinalError={() => markFailed('large1')}
+            loadingComponent={
+              <div className={`${styles.loadingContainer} ${styles.loadingIndigo}`}>
+                <span className={styles.loadingText}>Loading...</span>
+              </div>
+            }
+            fallback={
+               <div className={`${styles.placeholderContainer} ${styles.loadingIndigo}`}>
+                <span className={styles.placeholderText}>Failed</span>
+              </div>
+            }
           />
         ) : (
           <div className={`${styles.placeholderContainer} ${styles.loadingIndigo}`}>

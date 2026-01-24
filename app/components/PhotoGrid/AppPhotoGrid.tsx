@@ -5,7 +5,8 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { APP_PHOTO_GAP } from '../../constants/gridConstants';
-import { fetchAssetsManifest, getRandomAppPhotos, createImageRetryHandler } from '../../utils/assetUtils';
+import { fetchAssetsManifest, getRandomAppPhotos } from '../../utils/assetUtils';
+import ImageWithLoader from '../ImageWithLoader';
 import styles from './AppPhotoGrid.module.css';
 
 const shouldLog = process.env.NEXT_PUBLIC_DEBUG_LOGS === 'true';
@@ -84,11 +85,6 @@ export default function AppPhotoGrid({ opacity, photoCardFade }: AppPhotoGridPro
     >
       {[0, 1, 2, 3].map((index) => {
         const photoUrl = shuffledPhotos[index];
-        const handleError = photoUrl 
-          ? createImageRetryHandler(photoUrl, 3, (img) => {
-              img.style.display = 'none';
-            })
-          : undefined;
 
         return (
           <div key={index} className={styles.photoItem}>
@@ -97,11 +93,20 @@ export default function AppPhotoGrid({ opacity, photoCardFade }: AppPhotoGridPro
                 <span className={styles.loadingText}>Loading...</span>
               </div>
             ) : photoUrl ? (
-              <img
+              <ImageWithLoader
                 src={photoUrl}
                 alt={`App photo ${index + 1}`}
                 className={styles.photoImage}
-                onError={handleError}
+                loadingComponent={
+                  <div className={styles.loadingContainer}>
+                    <span className={styles.loadingText}>Loading...</span>
+                  </div>
+                }
+                fallback={
+                  <div className={styles.placeholderContainer}>
+                    <span className={styles.placeholderText}>Failed</span>
+                  </div>
+                }
               />
             ) : (
               <div className={styles.placeholderContainer}>

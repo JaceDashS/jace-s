@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useEffect, useRef } from 'react';
 import styles from './WelcomeScreen.module.css';
@@ -6,9 +6,14 @@ import styles from './WelcomeScreen.module.css';
 interface WelcomeScreenProps {
   onComplete: () => void;
   ready?: boolean; // 로딩 완료 여부
+  progressPercent?: number;
 }
 
-export default function WelcomeScreen({ onComplete, ready = false }: WelcomeScreenProps) {
+export default function WelcomeScreen({
+  onComplete,
+  ready = false,
+  progressPercent = 0,
+}: WelcomeScreenProps) {
   const timersRef = useRef<NodeJS.Timeout[]>([]);
   const hasStartedExitRef = useRef(false);
 
@@ -28,6 +33,8 @@ export default function WelcomeScreen({ onComplete, ready = false }: WelcomeScre
     };
   }, [ready, onComplete]);
 
+  const clampedPercent = Math.min(100, Math.max(0, Math.round(progressPercent)));
+
   return (
     <div
       className={`${styles.overlay} ${ready ? styles.overlayExiting : styles.overlayEntering}`}
@@ -36,9 +43,14 @@ export default function WelcomeScreen({ onComplete, ready = false }: WelcomeScre
         className={`${styles.content} ${ready ? styles.contentExiting : styles.contentEntering}`}
       >
         <h1 className={styles.title}>Welcome</h1>
-        <p className={styles.subtitle}>Loading...</p>
+        <p className={styles.subtitle}>{`${clampedPercent}%`}</p>
+        <div className={styles.progressTrack} aria-label="Loading">
+          <div
+            className={styles.progressBar}
+            style={{ width: `${clampedPercent}%` }}
+          />
+        </div>
       </div>
     </div>
   );
 }
-

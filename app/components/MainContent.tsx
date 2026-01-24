@@ -82,6 +82,7 @@ export default function MainContent() {
   const [appsLoaded, setAppsLoaded] = useState(false);
   const [certificationsLoaded, setCertificationsLoaded] = useState(false);
   const [homePhotosLoaded, setHomePhotosLoaded] = useState(false);
+  const [homePhotosProgress, setHomePhotosProgress] = useState({ completed: 0, total: 6 });
   
   // 환경변수 디버깅 (컴포넌트 마운트 시 한 번만 실행)
   useEffect(() => {
@@ -199,6 +200,12 @@ export default function MainContent() {
   const handleHomePhotosLoaded = useCallback(() => {
     setHomePhotosLoaded(true);
   }, []);
+  const handleHomePhotosProgress = useCallback((completed: number, total: number) => {
+    setHomePhotosProgress((prev) => ({
+      completed,
+      total: total > 0 ? total : prev.total,
+    }));
+  }, []);
 
   const handleWelcomeComplete = () => {
     setShowContent(true);
@@ -206,6 +213,14 @@ export default function MainContent() {
       setIsAnimating(true);
     }, 50);
   };
+
+  const homeTotal = homePhotosProgress.total || 6;
+  const totalUnits = 2 + homeTotal;
+  const completedUnits =
+    (appsLoaded ? 1 : 0) +
+    (certificationsLoaded ? 1 : 0) +
+    Math.min(homePhotosProgress.completed, homeTotal);
+  const progressPercent = totalUnits > 0 ? (completedUnits / totalUnits) * 100 : 0;
 
   useEffect(() => {
     if (!showContent || !isAnimating) return;
@@ -530,7 +545,13 @@ export default function MainContent() {
 
   return (
     <>
-      {!showContent && <WelcomeScreen onComplete={handleWelcomeComplete} ready={allResourcesLoaded} />}
+      {!showContent && (
+        <WelcomeScreen
+          onComplete={handleWelcomeComplete}
+          ready={allResourcesLoaded}
+          progressPercent={progressPercent}
+        />
+      )}
       <div
         className="min-h-[300vh]"
         style={{
@@ -991,6 +1012,7 @@ export default function MainContent() {
                       photoCardFade={photoCardFade}
                       onCertificationsLoaded={handleCertificationsLoaded}
                       onHomePhotosLoaded={handleHomePhotosLoaded}
+                      onHomePhotosProgress={handleHomePhotosProgress}
                     />
                   </div>
                 </div>

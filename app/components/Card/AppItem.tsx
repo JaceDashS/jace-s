@@ -4,9 +4,9 @@
  */
 'use client';
 
-import { useState, useMemo, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import type { App } from '../../types/app';
-import { createImageRetryHandler } from '../../utils/assetUtils';
+import ImageWithLoader from '../ImageWithLoader';
 import styles from './AppItem.module.css';
 
 const shouldLog = process.env.NEXT_PUBLIC_DEBUG_LOGS === 'true';
@@ -72,16 +72,6 @@ export default function AppItem({ app, buttonFontSize, iconSize }: AppItemProps)
     }
   };
 
-  // 이미지 재시도 핸들러 생성
-  const handleImageError = useMemo(() => 
-    app.imageUrl 
-      ? createImageRetryHandler(app.imageUrl, 3, (img) => {
-          img.style.display = 'none';
-        })
-      : undefined,
-    [app.imageUrl]
-  );
-
   useEffect(() => {
     if (!shouldLog || !app.imageUrl || hasLoggedRef.current) {
       return;
@@ -97,11 +87,15 @@ export default function AppItem({ app, buttonFontSize, iconSize }: AppItemProps)
   return (
     <div className={styles.appItem}>
       {app.imageUrl && (
-        <img
+        <ImageWithLoader
           src={app.imageUrl}
           alt={`${app.title} icon`}
           className={styles.appImage}
-          onError={handleImageError}
+          loadingComponent={
+            <div className={styles.appImage} style={{ background: 'rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <span style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.5)' }}>Loading...</span>
+            </div>
+          }
         />
       )}
       <div className={styles.appContent}>
