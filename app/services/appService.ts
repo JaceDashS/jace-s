@@ -12,6 +12,8 @@ interface AppRow {
   DESCRIPTION: string | null;
   IMAGE_URL: string | null;
   APK_URL: string | null;
+  INSTALLER_URL: string | null;
+  PORTABLE_URL: string | null;
   WEB_URL: string | null;
   DEMO_URL: string | null;
   GITHUB_URL: string | null;
@@ -58,6 +60,8 @@ export async function getAllApps(page: number, limit: number): Promise<{ apps: A
         DESCRIPTION,
         IMAGE_URL,
         APK_URL,
+        INSTALLER_URL,
+        PORTABLE_URL,
         WEB_URL,
         DEMO_URL,
         GITHUB_URL,
@@ -84,6 +88,8 @@ export async function getAllApps(page: number, limit: number): Promise<{ apps: A
       description: row.DESCRIPTION,
       imageUrl: row.IMAGE_URL,
       apkUrl: row.APK_URL,
+      installerUrl: row.INSTALLER_URL,
+      portableUrl: row.PORTABLE_URL,
       webUrl: row.WEB_URL,
       demoUrl: row.DEMO_URL,
       githubUrl: row.GITHUB_URL,

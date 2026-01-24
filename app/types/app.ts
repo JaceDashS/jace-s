@@ -7,6 +7,8 @@ export interface App {
   description: string | null;
   imageUrl: string | null;
   apkUrl: string | null;
+  installerUrl: string | null;
+  portableUrl: string | null;
   webUrl: string | null;
   demoUrl: string | null;
   githubUrl: string | null;

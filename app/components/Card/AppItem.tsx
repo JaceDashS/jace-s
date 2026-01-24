@@ -24,6 +24,18 @@ const AndroidIcon = ({ size }: { size: string }) => (
   </svg>
 );
 
+const WindowIcon = ({ size }: { size: string }) => (
+  <svg width={size} height={size} fill="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+    <path d="M0 3.449L9.75 2.1v9.451H0m10.949-9.602L24 0v11.4h-13.051M0 12.6h9.75v9.451L0 20.699M10.949 12.6H24V24l-12.9-1.801"/>
+  </svg>
+);
+
+const ZipIcon = ({ size }: { size: string }) => (
+  <svg width={size} height={size} fill="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6zM6 20V4h7v5h5v11H6z"/>
+  </svg>
+);
+
 const GlobeIcon = ({ size }: { size: string }) => (
   <svg width={size} height={size} fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" />
@@ -107,6 +119,28 @@ export default function AppItem({ app, buttonFontSize, iconSize }: AppItemProps)
             >
               <AndroidIcon size={iconSize} />
               <span>APK</span>
+            </a>
+          )}
+          {app.installerUrl && (
+            <a
+              href={app.installerUrl}
+              download
+              className={styles.appButton}
+              style={{ fontSize: buttonFontSize }}
+            >
+              <WindowIcon size={iconSize} />
+              <span>Setup</span>
+            </a>
+          )}
+          {app.portableUrl && (
+            <a
+              href={app.portableUrl}
+              download
+              className={styles.appButton}
+              style={{ fontSize: buttonFontSize }}
+            >
+              <ZipIcon size={iconSize} />
+              <span>Portable</span>
             </a>
           )}
           {app.webUrl && (
