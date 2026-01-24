@@ -66,7 +66,7 @@ app.prepare().then(() => {
 
   // WebSocket 서버 설정
   const wss = new WebSocketServer({
-    server,
+    noServer: true,
     path: '/api/online-sequencer/signaling'
   });
 
@@ -157,6 +157,19 @@ app.prepare().then(() => {
       }
     }
   }, 60 * 1000); // 1분
+
+  // HTTP 서버 Upgrade 이벤트 처리 (WebSocket)
+  server.on('upgrade', (req, socket, head) => {
+    const { pathname } = new URL(req.url || '', `http://${req.headers.host}`);
+
+    if (pathname === '/api/online-sequencer/signaling') {
+      wss.handleUpgrade(req, socket, head, (ws) => {
+        wss.emit('connection', ws, req);
+      });
+    }
+    // 개발 환경의 HMR(Hot Module Replacement) 등 다른 WebSocket 요청은 건드리지 않음
+    // Next.js 개발 서버가 처리하도록 둠
+  });
 
   server.listen(port, hostname, () => {
     logInfo(`=================================`);
