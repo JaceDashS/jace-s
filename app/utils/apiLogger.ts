@@ -101,7 +101,9 @@ export function logApiRequest(request: NextRequest, path: string): ApiLogContext
  * 헬스체크 경로인지 확인
  */
 function isHealthCheckPath(path: string): boolean {
-  return path === '/health' || path.startsWith('/external/health');
+  // 내부 서버 헬스체크(/health)만 로그 축약 대상으로 처리
+  // 외부 서비스 헬스체크(/external/health*)는 일반 API와 동일한 로깅 규칙 적용
+  return path === '/health';
 }
 
 /**
@@ -260,4 +262,3 @@ export async function withApiLogging(
     throw error;
   }
 }
-
