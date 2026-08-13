@@ -8,6 +8,7 @@ import next from 'next';
 import { WebSocketServer, WebSocket } from 'ws';
 import { config } from 'dotenv';
 import { resolve } from 'path';
+import { networkInterfaces } from 'os';
 import { signalingService } from './app/services/collaboration/signalingService';
 import { roomService } from './app/services/collaboration/roomService';
 import { getAllowedOriginsFromEnv } from './app/utils/corsOrigins';
@@ -21,6 +22,20 @@ config({ path: resolve(process.cwd(), envFile) });
 const dev = process.env.NODE_ENV === 'development';
 const hostname = process.env.HOST || '0.0.0.0';
 const port = parseInt(process.env.PORT || '3000', 10);
+
+function getLanIPv4Addresses(): string[] {
+  const addresses = new Set<string>();
+
+  for (const interfaces of Object.values(networkInterfaces())) {
+    for (const networkInterface of interfaces ?? []) {
+      if (networkInterface.family === 'IPv4' && !networkInterface.internal) {
+        addresses.add(networkInterface.address);
+      }
+    }
+  }
+
+  return [...addresses];
+}
 
 // NODE_ENV 확인 로그
 logInfo('=================================');
@@ -177,9 +192,11 @@ app.prepare().then(() => {
     logInfo(`=================================`);
     logInfo(`Server running on http://${hostname}:${port}`);
     logInfo(`Local access: http://localhost:${port}`);
+    for (const address of getLanIPv4Addresses()) {
+      logInfo(`Network access: http://${address}:${port}`);
+    }
     logInfo(`WebSocket: ws://${hostname}:${port}/api/online-sequencer/signaling`);
     logInfo(`=================================`);
   });
 });
-
 

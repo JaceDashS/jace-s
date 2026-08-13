@@ -18,9 +18,8 @@ export default function CommentSection() {
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [showRules, setShowRules] = useState<boolean>(false);
 
-  // API URL은 기본 URL + '/api/'로 생성
-  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || (typeof window !== 'undefined' ? window.location.origin : '');
-  const apiUrl = baseUrl ? `${baseUrl}/api/` : '/api/';
+  // 앱 목록과 동일하게 현재 페이지와 같은 origin의 API Routes를 사용합니다.
+  const apiUrl = '/api/';
 
   const setPlaceholderComments = useCallback(() => {
     setComments([
