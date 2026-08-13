@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import type { CSSProperties } from 'react';
 import { usePathname } from 'next/navigation';
 import WelcomeScreen from './WelcomeScreen';
@@ -13,6 +13,8 @@ import { isInMarker1 } from '../constants/markerConstants';
 import type { Language } from '../types/mainContent';
 import { useFadeAnimation } from '../hooks/useFadeAnimation';
 import { useCardState } from '../hooks/useCardState';
+import { useWelcomeFlow } from '../hooks/useWelcomeFlow';
+import { useMainContentData } from '../hooks/useMainContentData';
 import CardFront from './Card/CardFront';
 import CardBack from './Card/CardBack';
 import RightCardContent from './Card/RightCardContent';
@@ -22,35 +24,23 @@ import {
   getLeftCardTransition,
   getRightCardTransition,
 } from '../utils/styleUtils';
-import { fetchAssetsManifest, fetchProfileOverview } from '../utils/assetUtils';
 import { debugEnvironmentVariables } from '../utils/envDebug';
-import type { App } from '../types/app';
-
-type AppApiItem = Omit<App, 'createdAt' | 'updatedAt'> & {
-  createdAt: string;
-  updatedAt: string;
-};
-
-interface AppsApiResponse {
-  apps?: AppApiItem[];
-}
-
-type ProfileLinks = Record<string, string>;
 
 const shouldLog = process.env.NEXT_PUBLIC_DEBUG_LOGS === 'true';
-const WELCOME_SESSION_KEY = 'jace-s:welcome-complete';
 const MAX_DESKTOP_WHEEL_SCROLL_SPEED_PX_PER_SECOND = 2000;
 const MIN_WHEEL_FRAME_MS = 16;
 const MAX_WHEEL_FRAME_MS = 50;
 const PHOTO_COVER_TRACKING_MS = 400;
-type WelcomeMode = 'checking' | 'full' | 'returning';
 
 export default function MainContent() {
   // 상수들을 별도 파일에서 import하여 사용
 
-  const [showContent, setShowContent] = useState(false);
-  const [welcomeMode, setWelcomeMode] = useState<WelcomeMode>('checking');
-  const [isAnimating, setIsAnimating] = useState(false);
+  const {
+    showContent,
+    isAnimating,
+    welcomeMode,
+    handleWelcomeComplete,
+  } = useWelcomeFlow();
   const [scrollProgress, setScrollProgress] = useState(0);
   // 카드 상태는 useCardState 훅으로 관리
   const {
@@ -83,28 +73,20 @@ export default function MainContent() {
   const [language, setLanguage] = useState<Language>('en'); // 언어 상태 (기본값: 영어)
   const [selectedCertification, setSelectedCertification] = useState<string | null>(null); // 선택된 자격증 키 (null이면 홈 포토 표시)
   const [currentProjectPage, setCurrentProjectPage] = useState(1); // 프로젝트 페이지네이션 현재 페이지
-  const [profileName, setProfileName] = useState<string>(''); // 프로필 이름
-  const [profileDescription, setProfileDescription] = useState<string>(''); // 프로필 설명
-  const [profileLinks, setProfileLinks] = useState<ProfileLinks | null>(null);
-  const [apps, setApps] = useState<App[]>([]);
   const [isHomeCardShaking, setIsHomeCardShaking] = useState(false);
   const homeCardShakeTimeoutRef = useRef<number | null>(null);
-  // Welcome 화면 종료를 위한 로딩 상태 추적
-  const [appsLoaded, setAppsLoaded] = useState(false);
-  const [profileLoaded, setProfileLoaded] = useState(false);
-  const [certificationsLoaded, setCertificationsLoaded] = useState(false);
-  const [homePhotosLoaded, setHomePhotosLoaded] = useState(false);
-  const [homePhotosProgress, setHomePhotosProgress] = useState({ completed: 0, total: 6 });
+  const {
+    apps,
+    profileName,
+    profileDescription,
+    profileLinks,
+    allResourcesLoaded,
+    progressPercent,
+    handleCertificationsLoaded,
+    handleHomePhotosLoaded,
+    handleHomePhotosProgress,
+  } = useMainContentData(language);
 
-  useEffect(() => {
-    try {
-      const hasCompletedWelcome = window.sessionStorage.getItem(WELCOME_SESSION_KEY) === 'true';
-      setWelcomeMode(hasCompletedWelcome ? 'returning' : 'full');
-    } catch {
-      setWelcomeMode('full');
-    }
-  }, []);
-  
   // 환경변수 디버깅 (컴포넌트 마운트 시 한 번만 실행)
   useEffect(() => {
     if (shouldLog) {
@@ -144,65 +126,6 @@ export default function MainContent() {
     zh: '',
   };
 
-  // 앱 목록 로드 (Next.js API Routes를 통해 DB에서 직접 가져오기)
-  useEffect(() => {
-    let cancelled = false;
-    const controller = new AbortController();
-    const timeoutId = window.setTimeout(() => controller.abort(), 8000);
-
-    async function loadApps() {
-      try {
-        // Next.js API Routes 사용 (같은 origin의 /api/apps)
-        const res = await fetch('/api/apps?page=1&limit=100', {
-          signal: controller.signal,
-          cache: 'no-store',
-        });
-        
-        if (!res.ok) {
-          if (res.status === 404) {
-            setApps([]);
-            return;
-          }
-          throw new Error(`Failed to fetch apps: ${res.status} ${res.statusText}`);
-        }
-        
-        const contentType = res.headers.get('content-type');
-        if (!contentType || !contentType.includes('application/json')) {
-          setApps([]);
-          return;
-        }
-        
-        const data: AppsApiResponse = await res.json();
-        // App 객체 전체를 저장
-        const appsData = (data.apps || []).map((app) => ({
-          ...app,
-          createdAt: new Date(app.createdAt),
-          updatedAt: new Date(app.updatedAt),
-        }));
-        if (!cancelled) {
-          setApps(appsData);
-        }
-      } catch {
-        // 에러 발생 시 빈 배열 사용
-        if (!cancelled) {
-          setApps([]);
-        }
-      } finally {
-        if (!cancelled) {
-          setAppsLoaded(true);
-        }
-        clearTimeout(timeoutId);
-      }
-    }
-
-    loadApps();
-    return () => {
-      cancelled = true;
-      controller.abort();
-      clearTimeout(timeoutId);
-    };
-  }, []);
-  
   // 프로젝트 관련 상수들은 constants/gridConstants.ts에서 import
   
   // 각 마커 구간에 대한 ref
@@ -212,43 +135,6 @@ export default function MainContent() {
   const marker4Ref = useRef<HTMLDivElement>(null);
   
   const pathname = usePathname();
-
-  // 모든 로딩 완료 상태
-  const allResourcesLoaded =
-    appsLoaded && profileLoaded && certificationsLoaded && homePhotosLoaded;
-  const handleCertificationsLoaded = useCallback(() => {
-    setCertificationsLoaded(true);
-  }, []);
-  const handleHomePhotosLoaded = useCallback(() => {
-    setHomePhotosLoaded(true);
-  }, []);
-  const handleHomePhotosProgress = useCallback((completed: number, total: number) => {
-    setHomePhotosProgress((prev) => ({
-      completed,
-      total: total > 0 ? total : prev.total,
-    }));
-  }, []);
-
-  const handleWelcomeComplete = useCallback(() => {
-    try {
-      window.sessionStorage.setItem(WELCOME_SESSION_KEY, 'true');
-    } catch {
-      // 세션 저장소를 사용할 수 없는 환경에서도 화면 전환은 계속 진행한다.
-    }
-    setShowContent(true);
-    setTimeout(() => {
-      setIsAnimating(true);
-    }, 50);
-  }, []);
-
-  const homeTotal = homePhotosProgress.total || 6;
-  const totalUnits = 3 + homeTotal;
-  const completedUnits =
-    (appsLoaded ? 1 : 0) +
-    (profileLoaded ? 1 : 0) +
-    (certificationsLoaded ? 1 : 0) +
-    Math.min(homePhotosProgress.completed, homeTotal);
-  const progressPercent = totalUnits > 0 ? (completedUnits / totalUnits) * 100 : 0;
 
   useEffect(() => {
     if (!showContent || !isAnimating) return;
@@ -574,13 +460,13 @@ export default function MainContent() {
 
   // 디바이스 언어 감지 및 자동 선택
   useEffect(() => {
-    if (typeof window !== 'undefined') {
+    const timerId = window.setTimeout(() => {
       const browserLang =
         navigator.language ||
         (navigator as Navigator & { userLanguage?: string }).userLanguage ||
         'en';
       const langCode = browserLang.toLowerCase().split('-')[0]; // 'ko-KR' -> 'ko'
-      
+
       // 지원하는 언어인지 확인하고 설정
       if (langCode === 'ko' || langCode === 'ja' || langCode === 'zh') {
         setLanguage(langCode as 'ko' | 'ja' | 'zh');
@@ -588,47 +474,10 @@ export default function MainContent() {
         // 기본값은 영어
         setLanguage('en');
       }
-    }
+    }, 0);
+
+    return () => window.clearTimeout(timerId);
   }, []);
-
-  // Profile Overview 로드
-  useEffect(() => {
-    let cancelled = false;
-    setProfileLoaded(false);
-
-    async function loadProfileOverview() {
-      try {
-        const manifest = await fetchAssetsManifest();
-        if (!manifest) {
-          return;
-        }
-        
-        const profileData = await fetchProfileOverview(manifest);
-        if (!profileData) {
-          return;
-        }
-        
-        const currentLangData = profileData[language] || profileData['en'];
-        if (currentLangData && !cancelled) {
-          setProfileName(currentLangData.name);
-          setProfileDescription(currentLangData.description || '');
-          setProfileLinks(currentLangData.links || null);
-        }
-      } catch {
-        // Profile overview 로드 실패 시 조용히 처리
-      } finally {
-        if (!cancelled) {
-          setProfileLoaded(true);
-        }
-      }
-    }
-    loadProfileOverview();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [language]);
-
 
   // 페이드 애니메이션 계산은 useFadeAnimation 훅 사용
   const { greetingFade, photoCardFade, appsFade } = useFadeAnimation(scrollProgress);
