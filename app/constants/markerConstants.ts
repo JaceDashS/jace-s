@@ -17,13 +17,6 @@ export const MARKER_2 = {
   PATH: '/apps',
 } as const;
 
-export const MARKER_4 = {
-  START: 3,
-  END: Infinity,
-  NAME: 'Comments',
-  PATH: '/comments',
-} as const;
-
 /**
  * 마커 범위 체크 헬퍼 함수
  */
@@ -34,19 +27,3 @@ export const isInMarker1 = (scrollProgress: number): boolean => {
 export const isInMarker2 = (scrollProgress: number): boolean => {
   return scrollProgress >= MARKER_2.START && scrollProgress < MARKER_2.END;
 };
-
-export const isInMarker4 = (scrollProgress: number): boolean => {
-  return scrollProgress >= MARKER_4.START;
-};
-
-/**
- * 마커 범위 내에 있는지 체크 (시작점 포함, 끝점 미포함)
- */
-export const isInMarkerRange = (
-  scrollProgress: number,
-  start: number,
-  end: number
-): boolean => {
-  return scrollProgress >= start && scrollProgress < end;
-};
-

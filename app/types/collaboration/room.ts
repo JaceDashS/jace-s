@@ -32,14 +32,6 @@ export interface Room {
   maxParticipants: number;
 }
 
-export interface HostInfo {
-  /** 호스트 UUID */
-  hostId: string;
-  
-  /** 서버가 생성한 룸 코드 */
-  roomCode: string;
-}
-
 /**
  * 룸 생성 요청 데이터
  */
@@ -97,4 +89,3 @@ export interface KickParticipantResponse {
   message: string;
   error?: string;
 }
-

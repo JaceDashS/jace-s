@@ -15,8 +15,6 @@ export interface ApiSuccess<T = unknown> {
   data?: T;
 }
 
-export type ApiResponse<T = unknown> = ApiSuccess<T> | ApiError;
-
 /**
  * 에러 코드 정의
  */
@@ -66,16 +64,6 @@ export function createErrorResponse(
 }
 
 /**
- * 성공 응답 생성
- */
-export function createSuccessResponse<T>(data?: T): ApiSuccess<T> {
-  return {
-    success: true,
-    data
-  };
-}
-
-/**
  * 에러 로깅 (상세 정보 포함)
  */
 export function logError(
@@ -105,4 +93,3 @@ export function createValidationError(field: string, reason: string): { response
     { field, reason }
   );
 }
-

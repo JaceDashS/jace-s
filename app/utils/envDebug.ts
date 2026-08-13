@@ -76,20 +76,3 @@ export function debugEnvironmentVariables(): void {
   logDebug(`Protocol: ${window.location.protocol}`);
 }
 
-// 환경변수 디버깅 플래그 (한 번만 로그 출력)
-const envValueDebugLogged: Set<string> = new Set();
-
-/**
- * 특정 환경변수의 값을 안전하게 가져오기
- */
-export function getEnvValue(key: string): string | undefined {
-  const value = process.env[key];
-  if (!envValueDebugLogged.has(key)) {
-    logDebug(`[ENV DEBUG] ${key}: ${value || '(not set)'}`);
-    envValueDebugLogged.add(key);
-  }
-  return value;
-}
-
-
-

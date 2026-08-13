@@ -22,18 +22,6 @@ export interface RTCIceCandidateInit {
   sdpMid?: string | null;
 }
 
-export interface SignalingMessage {
-  type: 'offer' | 'answer' | 'ice-candidate';
-  from: string;        // 발신자 ID (hostId 또는 participantId)
-  to: string;          // 수신자 ID
-  roomCode: string;    // 룸 코드
-  data: {
-    sdp?: RTCSessionDescriptionInit;
-    candidate?: RTCIceCandidateInit;
-  };
-  timestamp: number;
-}
-
 /**
  * 클라이언트 → 서버 메시지 (WebSocket)
  */
@@ -715,4 +703,3 @@ export class SignalingService {
 }
 
 export const signalingService = new SignalingService();
-
