@@ -1,5 +1,8 @@
 import { logInfo } from './logging';
 
+export const CORS_ALLOW_METHODS = 'GET, POST, PUT, DELETE, PATCH, OPTIONS';
+export const CORS_ALLOW_HEADERS = 'Content-Type, Authorization, X-Requested-With, X-Forwarded-For, X-Origin, X-Client-Id, X-Host-Id';
+
 function extractOrigin(url: string | null): string | null {
   if (!url) return null;
   try {
@@ -12,57 +15,21 @@ function extractOrigin(url: string | null): string | null {
 
 export function getAllowedOriginsFromEnv(): {
   origins: string[];
-  envEntries: Array<{ key: string; urls: string[]; origins: string[] }>;
+  envEntries: Array<{ key: string; origins: string[] }>;
   corsMode: string | null;
   isDevMode: boolean;
 } {
   const origins = new Set<string>();
-  const envEntries: Array<{ key: string; urls: string[]; origins: string[] }> = [];
+  const envEntries: Array<{ key: string; origins: string[] }> = [];
 
   const corsMode = process.env.CORS_MODE || null;
   const isDevMode = corsMode === 'dev' || process.env.NODE_ENV === 'development';
 
-  const prefix = 'EXTERNAL_SERVICE_';
-  const serverUrlSuffix = '_SERVER_URL';
-  const urlSuffix = '_URL';
+  const addOriginEntry = (key: string, value: string | undefined) => {
+    if (!value) return;
 
-  Object.keys(process.env).forEach((key) => {
-    if (key.startsWith(prefix)) {
-      const isServerUrl = key.endsWith(serverUrlSuffix);
-      const isUrl = key.endsWith(urlSuffix) && !key.endsWith(serverUrlSuffix);
-
-      if (isServerUrl || isUrl) {
-        const urlValue = process.env[key];
-        if (urlValue) {
-          const urls = urlValue.split(',').map(u => u.trim()).filter(Boolean);
-          const extractedOrigins: string[] = [];
-
-          urls.forEach(url => {
-            const origin = extractOrigin(url);
-            if (origin) {
-              origins.add(origin);
-              extractedOrigins.push(origin);
-            }
-          });
-
-          if (extractedOrigins.length > 0) {
-            envEntries.push({
-              key,
-              urls,
-              origins: extractedOrigins,
-            });
-          }
-        }
-      }
-    }
-  });
-
-  const allowedOrigins = process.env.ALLOWED_ORIGINS;
-  if (allowedOrigins) {
-    const urls = allowedOrigins.split(',').map(u => u.trim()).filter(Boolean);
     const extractedOrigins: string[] = [];
-
-    urls.forEach(url => {
+    value.split(',').map(u => u.trim()).filter(Boolean).forEach(url => {
       const origin = extractOrigin(url);
       if (origin) {
         origins.add(origin);
@@ -72,34 +39,15 @@ export function getAllowedOriginsFromEnv(): {
 
     if (extractedOrigins.length > 0) {
       envEntries.push({
-        key: 'ALLOWED_ORIGINS',
-        urls,
+        key,
         origins: extractedOrigins,
       });
     }
-  }
+  };
 
-  const gptVisualizerClient = process.env.GPT_VISUALIZER_CLIENT;
-  if (gptVisualizerClient) {
-    const urls = gptVisualizerClient.split(',').map(u => u.trim()).filter(Boolean);
-    const extractedOrigins: string[] = [];
-
-    urls.forEach(url => {
-      const origin = extractOrigin(url);
-      if (origin) {
-        origins.add(origin);
-        extractedOrigins.push(origin);
-      }
-    });
-
-    if (extractedOrigins.length > 0) {
-      envEntries.push({
-        key: 'GPT_VISUALIZER_CLIENT',
-        urls,
-        origins: extractedOrigins,
-      });
-    }
-  }
+  // 클라이언트 Origin만 허용 목록에 추가하고, 외부 서비스 대상 URL은 제외합니다.
+  addOriginEntry('ALLOWED_ORIGINS', process.env.ALLOWED_ORIGINS);
+  addOriginEntry('GPT_VISUALIZER_CLIENT', process.env.GPT_VISUALIZER_CLIENT);
 
   return {
     origins: Array.from(origins),
@@ -109,6 +57,25 @@ export function getAllowedOriginsFromEnv(): {
   };
 }
 
+export function getCorsHeadersForOrigin(origin: string | null): Record<string, string> {
+  if (!origin) return {};
+
+  const { origins: allowedOrigins, isDevMode } = getAllowedOriginsFromEnv();
+  if (!isDevMode && !allowedOrigins.includes(origin)) {
+    return {};
+  }
+
+  return {
+    'Access-Control-Allow-Origin': origin,
+    'Access-Control-Allow-Methods': CORS_ALLOW_METHODS,
+    'Access-Control-Allow-Headers': CORS_ALLOW_HEADERS,
+    'Access-Control-Allow-Credentials': 'true',
+    'Access-Control-Max-Age': '86400',
+    Vary: 'Origin',
+  };
+}
+
+// CORS 시작 로그에는 설정 출처와 개수만 기록하고 실제 Origin 및 서비스 URL은 기록하지 않는다.
 let hasLoggedStartup = false;
 export function logCorsStartup() {
   if (hasLoggedStartup) return;
@@ -117,52 +84,33 @@ export function logCorsStartup() {
   const { origins, envEntries, corsMode, isDevMode } = getAllowedOriginsFromEnv();
 
   logInfo('[CORS] ========================================');
-  logInfo('[CORS] CORS Allowed Origins (Server Startup)');
+  logInfo('[CORS] CORS policy loaded');
   logInfo('[CORS] ========================================');
 
   const isDevelopment = process.env.NODE_ENV === 'development';
 
   if (isDevelopment) {
-    logInfo('[CORS] 🚀 DEVELOPMENT MODE: All origins are allowed');
-    logInfo('[CORS]');
+    logInfo('[CORS] Development mode allows all origins');
   }
 
   if (corsMode) {
     logInfo(`[CORS] CORS_MODE: ${corsMode}`);
-    if (isDevMode && !isDevelopment) {
-      logInfo('[CORS] ⚠️  DEV MODE: All origins are allowed');
-    }
-    logInfo('[CORS]');
   }
 
   if (envEntries.length === 0) {
-    if (isDevelopment || isDevMode) {
-      logInfo('[CORS] No specific origin restrictions (DEV MODE)');
-      logInfo('[CORS] All origins will be allowed');
-    } else {
-      logInfo('[CORS] No CORS environment variables found');
-      logInfo('[CORS] CORS will only allow same-origin requests');
-    }
-  } else {
-    logInfo('[CORS] Environment Variables:');
-    envEntries.forEach((entry) => {
-      logInfo(`[CORS]   ${entry.key}:`);
-      logInfo(`[CORS]     URLs: ${entry.urls.join(', ')}`);
-      logInfo(`[CORS]     Extracted Origins: ${entry.origins.join(', ')}`);
+    logInfo('[CORS] No explicit client origins configured', {
+      mode: isDevelopment || isDevMode ? 'development' : 'same-origin',
     });
-    logInfo('[CORS]');
-    logInfo('[CORS] Total Allowed Origins:', { origins: Array.from(origins) });
-    logInfo('[CORS] Count:', { count: origins.length });
+  } else {
+    logInfo('[CORS] Client origin sources configured', {
+      keys: envEntries.map(entry => entry.key),
+      originCount: origins.length,
+    });
+  }
 
-    if (isDevelopment) {
-      logInfo('[CORS] ⚠️  Note: DEVELOPMENT MODE is enabled, so ALL origins are allowed');
-      logInfo('[CORS]    (The above list is informational only)');
-    } else if (isDevMode) {
-      logInfo('[CORS] ⚠️  Note: DEV MODE (CORS_MODE=dev) is enabled, so ALL origins are allowed');
-      logInfo('[CORS]    (The above list is informational only)');
-    }
+  if (isDevMode) {
+    logInfo('[CORS] Development policy allows all origins');
   }
 
   logInfo('[CORS] ========================================');
 }
-

@@ -8,7 +8,7 @@ export const revalidate = 0;
 
 /**
  * 모든 외부 서비스 헬스체크 API
- * - 환경변수에서 EXTERNAL_SERVICE_*_URL 패턴을 찾아 모든 서비스의 헬스체크를 수행
+ * - 환경변수에서 EXTERNAL_SERVICE_*_SERVER_URL 패턴을 찾아 모든 서비스의 헬스체크를 수행
  * - 각 서비스의 /health 엔드포인트를 호출하여 상태 확인
  * 
  * @route GET /external/health
@@ -106,4 +106,3 @@ export async function GET(request: NextRequest) {
     );
   });
 }
-

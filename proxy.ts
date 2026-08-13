@@ -1,23 +1,20 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
+import { getCorsHeadersForOrigin } from './app/utils/corsOrigins';
 
 export function proxy(request: NextRequest) {
-  // 모든 오리진 허용을 위한 CORS 헤더
-  const response = NextResponse.next();
+  const origin = request.headers.get('origin');
+  const corsHeaders = getCorsHeadersForOrigin(origin);
+  const isAllowedOrigin = !origin || Object.keys(corsHeaders).length > 0;
+  const response = request.method === 'OPTIONS'
+    ? new NextResponse(null, { status: isAllowedOrigin ? 204 : 403 })
+    : isAllowedOrigin
+      ? NextResponse.next()
+      : new NextResponse(null, { status: 403 });
 
-  // CORS 헤더 설정
-  response.headers.set('Access-Control-Allow-Origin', '*');
-  response.headers.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
-  response.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, X-Forwarded-For');
-  response.headers.set('Access-Control-Max-Age', '86400');
-
-  // OPTIONS 요청에 대한 처리
-  if (request.method === 'OPTIONS') {
-    return new NextResponse(null, {
-      status: 200,
-      headers: response.headers,
-    });
-  }
+  Object.entries(corsHeaders).forEach(([key, value]) => {
+    response.headers.set(key, value);
+  });
 
   return response;
 }
@@ -26,4 +23,3 @@ export function proxy(request: NextRequest) {
 export const config = {
   matcher: '/:path*',
 };
-

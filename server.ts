@@ -11,7 +11,7 @@ import { resolve } from 'path';
 import { networkInterfaces } from 'os';
 import { signalingService } from './app/services/collaboration/signalingService';
 import { roomService } from './app/services/collaboration/roomService';
-import { getAllowedOriginsFromEnv } from './app/utils/corsOrigins';
+import { getCorsHeadersForOrigin } from './app/utils/corsOrigins';
 import { logDebug, logInfo } from './app/utils/logging';
 
 // 환경 변수 로드 (개발 환경일 때 .env.development, 프로덕션일 때 .env.production)
@@ -47,30 +47,26 @@ logInfo('=================================');
 
 const app = next({ dev, hostname, port });
 const handle = app.getRequestHandler();
-const { origins: allowedOrigins, isDevMode } = getAllowedOriginsFromEnv();
 
 app.prepare().then(() => {
   const server = createServer((req, res) => {
     const originHeader = req.headers.origin;
     const origin = Array.isArray(originHeader) ? originHeader[0] : originHeader;
-    const isAllowedOrigin = !!origin && (isDevMode || allowedOrigins.includes(origin));
+    const corsHeaders = getCorsHeadersForOrigin(origin || null);
+    const isAllowedOrigin = !origin || Object.keys(corsHeaders).length > 0;
 
-    if (origin && isAllowedOrigin) {
-      res.setHeader('Access-Control-Allow-Origin', origin);
-      res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
-      res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, X-Forwarded-For, X-Origin, X-Client-Id, X-Host-Id');
-      res.setHeader('Access-Control-Allow-Credentials', 'true');
-      res.setHeader('Vary', 'Origin');
+    Object.entries(corsHeaders).forEach(([key, value]) => {
+      res.setHeader(key, value);
+    });
+
+    if (origin && !isAllowedOrigin) {
+      res.writeHead(403);
+      res.end();
+      return;
     }
 
     // OPTIONS 요청 (preflight) 처리
     if (req.method === 'OPTIONS') {
-      if (origin && !isAllowedOrigin) {
-        res.writeHead(403);
-        res.end();
-        return;
-      }
-
       res.writeHead(204);
       res.end();
       return;
@@ -88,7 +84,7 @@ app.prepare().then(() => {
   wss.on('connection', (ws: WebSocket, req) => {
     const originHeader = req.headers.origin;
     const origin = Array.isArray(originHeader) ? originHeader[0] : originHeader;
-    const isAllowedOrigin = !origin || isDevMode || allowedOrigins.includes(origin);
+    const isAllowedOrigin = !origin || Object.keys(getCorsHeadersForOrigin(origin)).length > 0;
 
     if (!isAllowedOrigin) {
       logInfo('[Online Sequencer] WebSocket connection rejected: origin not allowed', { origin });
@@ -199,4 +195,3 @@ app.prepare().then(() => {
     logInfo(`=================================`);
   });
 });
-
