@@ -1,24 +1,28 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getClientIP } from './requestUtils';
 import { logDebug, logError, logInfo } from './logging';
+import { getVisitorAddressLog, type VisitorAddressLog } from './visitorRegionLogger';
 
-/**
- * origin이나 x-origin에서 서비스 이름을 추출하는 함수
- */
-function getServiceName(origin: string, xOrigin: string | null): string {
-  // x-origin 헤더가 있으면 우선 사용
-  const source = xOrigin || origin;
-  
-  if (!source || source === '(same-origin)') {
-    return 'Jace-S';
+export type ServiceName = 'Jace-S' | 'Online Sequencer' | 'GPT 3D Visualizer' | 'Unknown';
+
+function getPathServiceName(path: string): ServiceName | null {
+  const normalizedPath = path.toLowerCase();
+
+  if (normalizedPath.includes('/online-sequencer')) {
+    return 'Online Sequencer';
   }
-  
+  if (normalizedPath.includes('/gptvisualizer') || normalizedPath.includes('/gpt-visualizer')) {
+    return 'GPT 3D Visualizer';
+  }
+
+  return null;
+}
+
+function getOriginServiceName(source: string): ServiceName | null {
   try {
-    const url = new URL(source);
-    const hostname = url.hostname.toLowerCase();
-    
-    // 서비스 이름 매핑
-    if (hostname.includes('gpt') && (hostname.includes('visualizer') || hostname.includes('visual'))) {
+    const hostname = new URL(source).hostname.toLowerCase();
+
+    if (hostname.includes('gpt') && hostname.includes('visualizer')) {
       return 'GPT 3D Visualizer';
     }
     if (hostname.includes('online') && hostname.includes('sequencer')) {
@@ -27,29 +31,38 @@ function getServiceName(origin: string, xOrigin: string | null): string {
     if (hostname.includes('sequencer')) {
       return 'Online Sequencer';
     }
-    
-    // 매핑되지 않으면 호스트명을 읽기 쉬운 형태로 변환
-    // 예: gpt-visualizer.jace-s.com -> GPT Visualizer
-    const parts = hostname.split('.');
-    if (parts.length > 0) {
-      const firstPart = parts[0];
-      // 하이픈을 공백으로, 각 단어의 첫 글자를 대문자로
-      const formatted = firstPart
-        .split('-')
-        .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-        .join(' ');
-      return formatted;
+    if (hostname === 'jace-s.com' || hostname.endsWith('.jace-s.com')) {
+      return 'Jace-S';
     }
-    
-    return hostname;
   } catch {
-    return source;
+    return null;
   }
+
+  return null;
 }
 
-/**
- * API 요청 로깅 유틸리티
- */
+export function getServiceName(
+  origin: string,
+  xOrigin: string | null,
+  path: string
+): ServiceName {
+  const pathServiceName = getPathServiceName(path);
+
+  const originSources = [xOrigin, origin].filter(
+    (source): source is string => !!source && source !== '(same-origin)'
+  );
+  for (const source of originSources) {
+    const originServiceName = getOriginServiceName(source);
+    if (originServiceName) return originServiceName;
+  }
+
+  if (originSources.length === 0) {
+    return pathServiceName || 'Jace-S';
+  }
+
+  return pathServiceName || 'Unknown';
+}
+
 export interface ApiLogContext {
   method: string;
   path: string;
@@ -57,15 +70,18 @@ export interface ApiLogContext {
   xOrigin: string | null;
   ip: string;
   userAgent: string | null;
+  service: ServiceName;
+  visitorAddress: Promise<VisitorAddressLog>;
   requestBody?: unknown;
   statusCode?: number;
   error?: string;
   duration?: number;
 }
 
-/**
- * API 요청 시작 로그
- */
+function emptyVisitorAddressLog(): VisitorAddressLog {
+  return { address: null, addressDisplayed: false };
+}
+
 export function logApiRequest(request: NextRequest, path: string): ApiLogContext {
   const origin = request.headers.get('origin');
   const xOrigin = request.headers.get('x-origin');
@@ -73,6 +89,14 @@ export function logApiRequest(request: NextRequest, path: string): ApiLogContext
   const userAgent = request.headers.get('user-agent');
   const method = request.method;
   const actualOrigin = origin || xOrigin || '(same-origin)';
+  const service = getServiceName(actualOrigin, xOrigin, path);
+  const visitorAddress = isHealthCheckPath(path)
+    ? Promise.resolve(emptyVisitorAddressLog())
+    : getVisitorAddressLog(request, ip).catch((error: unknown) => {
+      const message = error instanceof Error ? error.message : String(error);
+      logDebug('Visitor access log enrichment failed', { clientIp: ip, error: message });
+      return emptyVisitorAddressLog();
+    });
 
   const context: ApiLogContext = {
     method,
@@ -80,107 +104,79 @@ export function logApiRequest(request: NextRequest, path: string): ApiLogContext
     origin: actualOrigin,
     xOrigin,
     ip,
-    userAgent: userAgent || '(no user-agent)',
+    userAgent,
+    service,
+    visitorAddress,
   };
 
-  // Debug 레벨에서만 상세 로그 출력
-  logDebug('[API] Request:', {
+  logDebug('API request received', {
     method: context.method,
     path: context.path,
     origin: context.origin,
     xOrigin: context.xOrigin,
-    ip: context.ip,
+    clientIp: context.ip,
     userAgent: context.userAgent,
-    timestamp: new Date().toISOString(),
+    service: context.service,
   });
 
   return context;
 }
 
-/**
- * 헬스체크 경로인지 확인
- */
 function isHealthCheckPath(path: string): boolean {
-  // 내부 서버 헬스체크(/health)만 로그 축약 대상으로 처리
-  // 외부 서비스 헬스체크(/external/health*)는 일반 API와 동일한 로깅 규칙 적용
   return path === '/health';
 }
 
-/**
- * API 요청 성공 로그
- */
-export function logApiSuccess(context: ApiLogContext, statusCode: number, duration: number): void {
-  // 서비스 이름 추출
-  const serviceName = getServiceName(context.origin, context.xOrigin);
-  
-  // 상세 정보 로그 데이터
-  const logData: Record<string, unknown> = {
+async function getVisitorLogData(
+  context: ApiLogContext,
+  statusCode: number,
+  durationMs: number
+): Promise<Record<string, unknown>> {
+  const visitorAddress = await context.visitorAddress;
+
+  return {
+    service: context.service,
+    clientIp: context.ip,
+    address: visitorAddress.address,
+    addressDisplayed: visitorAddress.addressDisplayed,
+    userAgent: context.userAgent,
     method: context.method,
     path: context.path,
-    origin: context.origin,
-    xOrigin: context.xOrigin,
-    ip: context.ip,
-    outcome: getOutcome(statusCode),
     statusCode,
-    duration: `${duration}ms`,
-    timestamp: new Date().toISOString(),
+    durationMs,
   };
-
-  if (context.requestBody !== undefined) {
-    logData.body = context.requestBody;
-  }
-
-  // 헬스체크는 debug 레벨로만 출력
-  if (isHealthCheckPath(context.path)) {
-    logDebug(`[${serviceName}] ${context.method} ${context.path} ${statusCode} ${duration}ms IP:${context.ip}`, logData);
-  } else {
-    // Info 레벨: 한 줄로 요청 정보와 IP 출력 (ECS 로그용)
-    const oneLineLog = `[${serviceName}] ${context.method} ${context.path} ${statusCode} ${duration}ms IP:${context.ip}`;
-    logInfo(oneLineLog);
-    // Debug 레벨: 상세 정보 출력
-    logDebug('[API] Success:', logData);
-  }
 }
 
-/**
- * API 요청 실패 로그
- */
-export function logApiError(
+export async function logApiSuccess(
+  context: ApiLogContext,
+  statusCode: number,
+  duration: number
+): Promise<void> {
+  const logData = await getVisitorLogData(context, statusCode, duration);
+
+  if (isHealthCheckPath(context.path)) {
+    logDebug('', logData);
+    return;
+  }
+
+  logInfo('', logData);
+}
+
+export async function logApiError(
   context: ApiLogContext,
   statusCode: number,
   error: Error | string,
   duration: number
-): void {
+): Promise<void> {
   const errorMessage = error instanceof Error ? error.message : String(error);
   const errorStack = error instanceof Error ? error.stack : undefined;
+  const logData = await getVisitorLogData(context, statusCode, duration);
 
-  // 서비스 이름 추출
-  const serviceName = getServiceName(context.origin, context.xOrigin);
-
-  // 상세 정보 로그 데이터
-  const logData: Record<string, unknown> = {
-    method: context.method,
-    path: context.path,
-    origin: context.origin,
-    xOrigin: context.xOrigin,
-    ip: context.ip,
-    outcome: getOutcome(statusCode),
-    statusCode,
-    error: errorMessage,
-    stack: errorStack,
-    duration: `${duration}ms`,
-    timestamp: new Date().toISOString(),
-  };
-
-  // 헬스체크는 debug 레벨로만 출력
   if (isHealthCheckPath(context.path)) {
-    logDebug(`[${serviceName}] ${context.method} ${context.path} ${statusCode} - ${errorMessage}`, logData);
-  } else {
-    // Error 레벨: 에러 메시지만 출력 (IP 제외)
-    logError(`[${serviceName}] ${context.method} ${context.path} ${statusCode} - ${errorMessage}`);
-    // Debug 레벨: 상세 정보 출력
-    logDebug('[API] Error Details:', logData);
+    logDebug(errorMessage, { ...logData, stack: errorStack });
+    return;
   }
+
+  logError(errorMessage, { ...logData, stack: errorStack });
 }
 
 function getOutcome(statusCode: number): 'success' | 'redirect' | 'denied' | 'error' {
@@ -208,10 +204,6 @@ async function getErrorReason(response: NextResponse): Promise<string | undefine
   }
 }
 
-/**
- * API 요청 래퍼 함수
- * 요청 시작/종료 시간을 자동으로 추적하고 로깅합니다.
- */
 export async function withApiLogging(
   request: NextRequest,
   path: string,
@@ -220,7 +212,6 @@ export async function withApiLogging(
   const startTime = Date.now();
   const context = logApiRequest(request, path);
 
-  // POST, PUT, PATCH 요청의 경우 body를 미리 읽어서 로그에 포함
   const method = request.method.toUpperCase();
   if (['POST', 'PUT', 'PATCH'].includes(method) && request.body) {
     try {
@@ -230,11 +221,9 @@ export async function withApiLogging(
         context.requestBody = await clonedRequest.json();
       } else {
         const text = await clonedRequest.text();
-        // body가 너무 길면 잘라서 표시 (10KB 제한)
         context.requestBody = text.length > 10240 ? `${text.slice(0, 10240)}... (truncated)` : text;
       }
     } catch {
-      // body 읽기 실패는 무시 (로그에만 포함)
       context.requestBody = '(failed to parse body)';
     }
   }
@@ -246,19 +235,19 @@ export async function withApiLogging(
     const outcome = getOutcome(statusCode);
 
     if (outcome === 'success' || outcome === 'redirect') {
-      logApiSuccess(context, statusCode, duration);
+      await logApiSuccess(context, statusCode, duration);
     } else {
       const errorReason = await getErrorReason(response);
-      logApiError(context, statusCode, errorReason || `HTTP ${statusCode}`, duration);
+      await logApiError(context, statusCode, errorReason || `HTTP ${statusCode}`, duration);
     }
 
     return response;
   } catch (error) {
     const duration = Date.now() - startTime;
-    const statusCode = error instanceof Error && 'status' in error ? (error as { status: number }).status : 500;
-    logApiError(context, statusCode, error instanceof Error ? error : String(error), duration);
-
-    // 에러를 다시 throw하여 상위에서 처리할 수 있도록 함
+    const statusCode = error instanceof Error && 'status' in error
+      ? (error as { status: number }).status
+      : 500;
+    await logApiError(context, statusCode, error instanceof Error ? error : String(error), duration);
     throw error;
   }
 }
