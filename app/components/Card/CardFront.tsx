@@ -7,6 +7,7 @@ import { PROJECTS_PER_PAGE } from '../../constants/gridConstants';
 import type { Language } from '../../types/mainContent';
 import type { App } from '../../types/app';
 import { fetchAssetsManifest, getRandomHomePhotos } from '../../utils/assetUtils';
+import { useCardFrontLinks } from '../../hooks/useCardFrontLinks';
 import { BUTTON_MAX_FACTOR, CARD_WIDTH as BUTTON_CARD_WIDTH, BUTTON_PADDING, BUTTON_FONT, ICON_SIZE } from '../../constants/buttonConstants';
 import ImageWithLoader from '../ImageWithLoader';
 import AppItem from './AppItem';
@@ -210,24 +211,13 @@ export default function CardFront({
   const [homePhotos, setHomePhotos] = useState<string[]>([]);
   const [homePhotoLayout, setHomePhotoLayout] = useState({ height: 0, count: 0 });
   
-  // 런타임 환경 변수 (서버 사이드에서는 process.env, 클라이언트 사이드에서는 /api/config)
-  // 초기값은 빌드 타임 값 (서버/클라이언트 모두 동일하게 설정하여 Hydration 오류 방지)
-  // useEffect에서 런타임 값으로 업데이트됨
-  const [instagramUrl, setInstagramUrl] = useState<string>(
-    process.env.NEXT_PUBLIC_INSTAGRAM_URL || ''
-  );
-  const [githubUrl, setGithubUrl] = useState<string>(
-    process.env.NEXT_PUBLIC_GITHUB_URL || ''
-  );
-  const [email, setEmail] = useState<string>(
-    process.env.NEXT_PUBLIC_EMAIL || ''
-  );
-  const [compositionUrl, setCompositionUrl] = useState<string>(
-    process.env.NEXT_PUBLIC_COMPOSITION_URL || ''
-  );
-  const [guitarUrl, setGuitarUrl] = useState<string>(
-    process.env.NEXT_PUBLIC_GUITAR_URL || ''
-  );
+  const {
+    instagramUrl,
+    githubUrl,
+    email,
+    compositionUrl,
+    guitarUrl,
+  } = useCardFrontLinks();
 
   const linkedDescription = useMemo(() => {
     if (!profileDescription) return null;
@@ -278,40 +268,6 @@ export default function CardFront({
       );
     });
   }, [profileDescription, profileLinks, compositionUrl, guitarUrl]);
-
-  // 런타임 환경 변수 가져오기 (클라이언트 사이드만)
-  useEffect(() => {
-    // 클라이언트 사이드에서만 /api/config를 통해 가져오기
-    if (typeof window === 'undefined') {
-      return;
-    }
-
-    const fetchConfig = async () => {
-      try {
-        const response = await fetch('/api/config', {
-          cache: 'no-store',
-        });
-        if (response.ok) {
-          const config = await response.json();
-          setInstagramUrl(config.instagramUrl || '');
-          setGithubUrl(config.githubUrl || '');
-          setEmail(config.email || '');
-          setCompositionUrl(config.compositionUrl || '');
-          setGuitarUrl(config.guitarUrl || '');
-        }
-      } catch (error) {
-        console.error('[CardFront] Failed to fetch config:', error);
-        // 실패 시 빌드 타임 값 사용 (fallback)
-        setInstagramUrl(process.env.NEXT_PUBLIC_INSTAGRAM_URL || '');
-        setGithubUrl(process.env.NEXT_PUBLIC_GITHUB_URL || '');
-        setEmail(process.env.NEXT_PUBLIC_EMAIL || '');
-        setCompositionUrl(process.env.NEXT_PUBLIC_COMPOSITION_URL || '');
-        setGuitarUrl(process.env.NEXT_PUBLIC_GUITAR_URL || '');
-      }
-    };
-
-    fetchConfig();
-  }, []);
 
   useEffect(() => {
     if (!isCompactHome || homePhotoLayout.count === 0 || homePhotosLoadStartedRef.current) {
