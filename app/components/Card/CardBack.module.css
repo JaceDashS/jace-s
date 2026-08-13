@@ -3,9 +3,16 @@
  */
 
 .cardContainer {
+  --desktop-card-accent: 196 181 253;
   width: 100%;
   height: 100%;
-  background-color: rgb(88 28 135);
+  background:
+    radial-gradient(
+      circle at 100% 0%,
+      rgb(var(--desktop-card-accent) / 0.2),
+      transparent 44%
+    ),
+    rgb(88 28 135);
   border-radius: 1rem;
   box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
   padding: 3rem;
@@ -19,6 +26,41 @@
   box-sizing: border-box;
   overflow: hidden;
   min-height: 0;
+}
+
+.certificateCard {
+  --desktop-card-accent: 196 181 253;
+}
+
+.desktopCertificateCard {
+  background:
+    radial-gradient(
+      circle at 100% 0%,
+      rgb(var(--desktop-card-accent) / 0.18),
+      transparent 44%
+    ),
+    rgb(30 27 50);
+  border: 1px solid rgb(var(--desktop-card-accent) / 0.3);
+  border-radius: 1.25rem;
+  box-shadow:
+    0 24px 60px rgba(0, 0, 0, 0.34),
+    0 0 28px rgb(var(--desktop-card-accent) / 0.08);
+}
+
+.commentsCard {
+  --desktop-card-accent: 244 114 182;
+  background:
+    radial-gradient(
+      circle at 100% 0%,
+      rgb(var(--desktop-card-accent) / 0.18),
+      transparent 44%
+    ),
+    rgb(30 41 55);
+  border: 1px solid rgb(var(--desktop-card-accent) / 0.32);
+  border-radius: 1.25rem;
+  box-shadow:
+    0 24px 60px rgba(0, 0, 0, 0.34),
+    0 0 28px rgb(var(--desktop-card-accent) / 0.08);
 }
 
 @media (max-width: 1024px) {

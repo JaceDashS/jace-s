@@ -39,6 +39,10 @@ type ProfileLinks = Record<string, string>;
 
 const shouldLog = process.env.NEXT_PUBLIC_DEBUG_LOGS === 'true';
 const WELCOME_SESSION_KEY = 'jace-s:welcome-complete';
+const MAX_DESKTOP_WHEEL_SCROLL_SPEED_PX_PER_SECOND = 2000;
+const MIN_WHEEL_FRAME_MS = 16;
+const MAX_WHEEL_FRAME_MS = 50;
+const PHOTO_COVER_TRACKING_MS = 400;
 type WelcomeMode = 'checking' | 'full' | 'returning';
 
 export default function MainContent() {
@@ -73,6 +77,9 @@ export default function MainContent() {
   } = useCardState();
 
   const [isScrollingUp, setIsScrollingUp] = useState(false); // 스크롤 방향 추적
+  const [desktopPhotoCardFade, setDesktopPhotoCardFade] = useState(1);
+  const leftCardRef = useRef<HTMLDivElement>(null);
+  const rightCardRef = useRef<HTMLDivElement>(null);
   const [language, setLanguage] = useState<Language>('en'); // 언어 상태 (기본값: 영어)
   const [selectedCertification, setSelectedCertification] = useState<string | null>(null); // 선택된 자격증 키 (null이면 홈 포토 표시)
   const [currentProjectPage, setCurrentProjectPage] = useState(1); // 프로젝트 페이지네이션 현재 페이지
@@ -248,6 +255,7 @@ export default function MainContent() {
 
     let rafId: number | null = null;
     let lastScrollY = window.scrollY; // 이전 스크롤 위치 추적
+    let lastWheelTimestamp: number | null = null;
 
     const handleScroll = () => {
       // 호버 해제 플로우가 시작되었고 완료 조건(4조건)을 만족하지 못하면 스크롤 자체도 되돌린다 (입력 차단과 함께 사용)
@@ -260,7 +268,8 @@ export default function MainContent() {
         pendingHoverLeaveRef.current === false &&
         isHoverLeaveFlowActiveRef.current === false;
       const isAtTop = window.scrollY <= 1;
-      const shouldBlockHomeScroll = isAtTop && !isHomeCardDefault;
+      const shouldBlockHomeScroll =
+        isAtTop && isHoverLeaveFlowActiveRef.current && !isHomeCardDefault;
       if (shouldBlockHomeScroll) {
         // Restore previous scroll position while blocked.
         window.scrollTo({
@@ -353,7 +362,7 @@ export default function MainContent() {
 
     const shouldBlockScrollInput = () => {
       const isAtTop = window.scrollY <= 1;
-      return isAtTop && !isHomeCardDefault();
+      return isAtTop && isHoverLeaveFlowActiveRef.current && !isHomeCardDefault();
     };
 
     const triggerHomeCardShake = () => {
@@ -376,12 +385,65 @@ export default function MainContent() {
       e.preventDefault();
     };
 
+    const canNestedRegionConsumeWheel = (event: WheelEvent) => {
+      if (!(event.target instanceof Element)) return false;
+      const scrollRegion = event.target.closest<HTMLElement>('[data-card-scroll-region]');
+      if (!scrollRegion || scrollRegion.scrollHeight <= scrollRegion.clientHeight) return false;
+
+      const maxScrollTop = scrollRegion.scrollHeight - scrollRegion.clientHeight;
+      return event.deltaY < 0
+        ? scrollRegion.scrollTop > 0
+        : scrollRegion.scrollTop < maxScrollTop - 1;
+    };
+
+    const getWheelDeltaInPixels = (event: WheelEvent) => {
+      if (event.deltaMode === WheelEvent.DOM_DELTA_LINE) {
+        return event.deltaY * 16;
+      }
+      if (event.deltaMode === WheelEvent.DOM_DELTA_PAGE) {
+        return event.deltaY * window.innerHeight;
+      }
+      return event.deltaY;
+    };
+
+    const applyDesktopWheelSpeedLimit = (event: WheelEvent) => {
+      if (
+        event.ctrlKey ||
+        !window.matchMedia('(min-width: 601px)').matches ||
+        Math.abs(event.deltaY) <= Math.abs(event.deltaX) ||
+        canNestedRegionConsumeWheel(event)
+      ) {
+        lastWheelTimestamp = null;
+        return false;
+      }
+
+      const elapsedMs = lastWheelTimestamp === null
+        ? MIN_WHEEL_FRAME_MS
+        : Math.min(
+            Math.max(event.timeStamp - lastWheelTimestamp, MIN_WHEEL_FRAME_MS),
+            MAX_WHEEL_FRAME_MS,
+          );
+      lastWheelTimestamp = event.timeStamp;
+
+      const deltaPixels = getWheelDeltaInPixels(event);
+      const maximumDelta = MAX_DESKTOP_WHEEL_SCROLL_SPEED_PX_PER_SECOND * (elapsedMs / 1000);
+      const limitedDelta = Math.sign(deltaPixels) * Math.min(Math.abs(deltaPixels), maximumDelta);
+
+      event.preventDefault();
+      event.stopPropagation();
+      window.scrollBy({ top: limitedDelta, behavior: 'auto' });
+      return true;
+    };
+
     const onWheelCapture = (e: WheelEvent) => {
       const blocked = shouldBlockScrollInput();
-      if (!blocked) return;
-      e.preventDefault();
-      e.stopPropagation();
-      triggerHomeCardShake();
+      if (blocked) {
+        e.preventDefault();
+        e.stopPropagation();
+        triggerHomeCardShake();
+        return;
+      }
+      applyDesktopWheelSpeedLimit(e);
     };
 
     const onTouchMove = (e: TouchEvent) => {
@@ -571,6 +633,45 @@ export default function MainContent() {
   // 페이드 애니메이션 계산은 useFadeAnimation 훅 사용
   const { greetingFade, photoCardFade, appsFade } = useFadeAnimation(scrollProgress);
 
+  useEffect(() => {
+    if (!showContent || !isAnimating || !window.matchMedia('(min-width: 601px)').matches) {
+      return;
+    }
+
+    let frameId: number | null = null;
+    const trackingStartedAt = performance.now();
+
+    const updatePhotoAtActualCover = () => {
+      const leftCard = leftCardRef.current;
+      const rightCard = rightCardRef.current;
+      if (!leftCard || !rightCard) {
+        return;
+      }
+
+      const leftRect = leftCard.getBoundingClientRect();
+      const rightRect = rightCard.getBoundingClientRect();
+      const leftCenter = leftRect.left + leftRect.width / 2;
+      const rightCenter = rightRect.left + rightRect.width / 2;
+      const nextFade = leftCenter < rightCenter ? 1 : 0;
+
+      setDesktopPhotoCardFade((currentFade) => (
+        currentFade === nextFade ? currentFade : nextFade
+      ));
+
+      if (performance.now() - trackingStartedAt < PHOTO_COVER_TRACKING_MS) {
+        frameId = requestAnimationFrame(updatePhotoAtActualCover);
+      }
+    };
+
+    frameId = requestAnimationFrame(updatePhotoAtActualCover);
+
+    return () => {
+      if (frameId !== null) {
+        cancelAnimationFrame(frameId);
+      }
+    };
+  }, [isAnimating, scrollProgress, showContent]);
+
   const rightCardTransform = isAnimating
     ? `${getRightCardTransform(scrollProgress, hoverPhase)} ${selectedCertification ? 'rotateY(180deg)' : ''}`
     : `scale(${CARD_SCALE}) translateX(32px) rotate(2deg) ${selectedCertification ? 'rotateY(180deg)' : ''}`;
@@ -586,12 +687,20 @@ export default function MainContent() {
         />
       )}
       <div
-        className="desktop-experience min-h-[300vh]"
+        className="desktop-experience desktop-background min-h-[300vh]"
         style={{
           opacity: showContent ? 1 : 0,
           pointerEvents: showContent ? 'auto' : 'none',
         }}
       >
+          <span className={`desktop-brand fixed left-8 top-8 z-50 transition-all duration-1000 ease-out ${
+            isAnimating
+              ? 'opacity-100 translate-y-0'
+              : 'opacity-0 translate-y-4'
+          }`} style={{ color: 'rgb(196 181 253)' }}>
+            JACE-S
+          </span>
+
           {/* 언어 선택 UI - 오른쪽 위 고정 */}
           <div className={`fixed right-8 top-8 z-50 transition-all duration-1000 ease-out ${
             isAnimating
@@ -727,7 +836,7 @@ export default function MainContent() {
           </div>
 
           <main
-            className={`min-h-screen flex items-center justify-center p-4 bg-slate-900 transition-all duration-1000 ease-out sticky top-0 ${
+            className={`desktop-background min-h-screen flex items-center justify-center p-4 transition-all duration-1000 ease-out sticky top-0 ${
               isAnimating
                 ? 'opacity-100 translate-y-0'
                 : 'opacity-0 translate-y-4'
@@ -825,9 +934,10 @@ export default function MainContent() {
             </div>
 
             {/* 1번 마커 구간 - Home */}
-            <div ref={homeRef} className="relative w-full h-[90vh] flex items-center justify-center gap-0" style={{ perspective: '1000px' }}>
+            <div ref={homeRef} className="desktop-card-stage relative w-full flex items-center justify-center gap-0" style={{ perspective: '1000px' }}>
               {/* 왼쪽 카드 - 오른쪽으로 이동 (옆으로만 움직임), 세 번째 구간에서 플립 */}
               <div
+                ref={leftCardRef}
                 data-role="left-card"
                 className="w-1/2 h-full relative"
                 style={{
@@ -858,7 +968,7 @@ export default function MainContent() {
                   profileLinks={profileLinks || undefined}
                   greetingText={greetingText[language]}
                   nameSuffix={nameSuffix[language]}
-                  disablePointerEvents={(scrollProgress > 0 && scrollProgress < 1) || scrollProgress >= 2}
+                  disablePointerEvents={isCardFlipped || (scrollProgress > 0 && scrollProgress < 1) || scrollProgress >= 2}
                 />
                 <CardBack
                   scrollProgress={scrollProgress}
@@ -871,8 +981,9 @@ export default function MainContent() {
 
               {/* 오른쪽 카드 - 왼쪽으로 이동 (옆으로만 움직임) */}
               <div
+                ref={rightCardRef}
                 data-role="right-card"
-                className={`w-1/2 h-full bg-white rounded-2xl shadow-2xl relative transform cursor-pointer ${isHomeCardShaking ? 'home-card-shake' : ''}`}
+                className={`desktop-photo-card w-1/2 h-full rounded-2xl relative transform cursor-pointer ${isHomeCardShaking ? 'home-card-shake' : ''}`}
                 onMouseEnter={() => {
                   if (window.scrollY > 1) {
                     return;
@@ -948,6 +1059,18 @@ export default function MainContent() {
                 }}
                 onMouseLeave={() => {
                   if (isInMarker1(scrollProgress)) {
+                    const hasActiveHoverState =
+                      hoverPhaseRef.current !== 'none' ||
+                      isRightCardHoveredRef.current ||
+                      isHoverAnimationRunningRef.current ||
+                      isZIndexChangedRef.current ||
+                      pendingHoverEnterRef.current ||
+                      pendingHoverLeaveRef.current;
+                    if (!hasActiveHoverState) {
+                      isHoverLeaveFlowActiveRef.current = false;
+                      return;
+                    }
+
                     // 호버 해제 플로우 시작: 완료 조건 만족 전까지 스크롤 입력 차단
                     isHoverLeaveFlowActiveRef.current = true;
                     if (!isHoverAnimationRunning && isRightCardHovered) {
@@ -1042,10 +1165,11 @@ export default function MainContent() {
                 <div className="flex-1 relative" style={{ transformStyle: 'preserve-3d' }}>
                     <RightCardContent
                       selectedCertification={selectedCertification}
-                      photoCardFade={photoCardFade}
+                      photoCardFade={desktopPhotoCardFade}
                       onCertificationsLoaded={handleCertificationsLoaded}
                       onHomePhotosLoaded={handleHomePhotosLoaded}
                       onHomePhotosProgress={handleHomePhotosProgress}
+                      instantPhotoSwitch
                     />
                   </div>
                 </div>
@@ -1054,15 +1178,15 @@ export default function MainContent() {
           </main>
 
           {/* 2번 마커 구간 - Apps */}
-          <div ref={appsRef} className="h-screen flex items-center justify-center bg-slate-900 text-white">
+          <div ref={appsRef} className="desktop-background h-screen flex items-center justify-center text-white">
           </div>
 
           {/* 4번 마커 구간 - Comments */}
-          <div ref={commentRef} className="h-screen flex items-center justify-center bg-slate-900 text-white">
+          <div ref={commentRef} className="desktop-background h-screen flex items-center justify-center text-white">
           </div>
 
           {/* 4번 마커 구간 */}
-          <div ref={marker4Ref} className="h-screen flex items-center justify-center bg-slate-900 text-white">
+          <div ref={marker4Ref} className="desktop-background h-screen flex items-center justify-center text-white">
           </div>
         </div>
       <MobileContent

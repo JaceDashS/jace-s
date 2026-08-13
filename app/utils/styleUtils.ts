@@ -6,12 +6,26 @@ import {
   CARD_SCALE,
   CARD_HOVER_SEPARATION,
   CARD_TRANSLATE_X_MULTIPLIER,
+  CARD_COVER_PROGRESS,
   CARD_ROTATE_START_ANGLE,
   CARD_ROTATE_END_ANGLE,
   CARD_ROTATE_MULTIPLIER,
 } from '../constants/cardConstants';
 import { HOVER_TRANSITION_DURATION, HOVER_TRANSITION_EASING } from '../constants/hoverConstants';
 import type { HoverPhase } from '../types/mainContent';
+
+const getCoverAlignedTranslateX = (scrollProgress: number): number => {
+  const coverTranslateX = 50 / CARD_SCALE;
+  const finalTranslateX = CARD_OVERLAP_OFFSET + CARD_TRANSLATE_X_MULTIPLIER;
+
+  if (scrollProgress <= CARD_COVER_PROGRESS) {
+    const progressToCover = scrollProgress / CARD_COVER_PROGRESS;
+    return CARD_OVERLAP_OFFSET + (coverTranslateX - CARD_OVERLAP_OFFSET) * progressToCover;
+  }
+
+  const progressFromCover = (scrollProgress - CARD_COVER_PROGRESS) / (1 - CARD_COVER_PROGRESS);
+  return coverTranslateX + (finalTranslateX - coverTranslateX) * progressFromCover;
+};
 
 /**
  * 왼쪽 카드의 transform 계산
@@ -23,7 +37,7 @@ export const getLeftCardTransform = (
 ): string => {
   if (scrollProgress < 1) {
     // 첫 번째 구간 (0~1): 기존 이동 애니메이션 + 버튼 클릭 시 플립 + 호버 효과
-    let baseTranslateX = CARD_OVERLAP_OFFSET + scrollProgress * CARD_TRANSLATE_X_MULTIPLIER;
+    let baseTranslateX = getCoverAlignedTranslateX(scrollProgress);
     
     // 호버 애니메이션: 벌려진 후 원래 위치로
     if (hoverPhase === 'spread') {
@@ -31,7 +45,7 @@ export const getLeftCardTransform = (
       baseTranslateX += CARD_HOVER_SEPARATION / 2;
     } else if (hoverPhase === 'close') {
       // 2단계: 원래 위치로 돌아가기 (z축은 변경됨)
-      baseTranslateX = CARD_OVERLAP_OFFSET + scrollProgress * CARD_TRANSLATE_X_MULTIPLIER;
+      baseTranslateX = getCoverAlignedTranslateX(scrollProgress);
     }
     
     const baseTransform = `scale(${CARD_SCALE}) translateX(${baseTranslateX}%)`;
@@ -75,7 +89,7 @@ export const getRightCardTransform = (
 ): string => {
   if (scrollProgress < 1) {
     // 첫 번째 구간 (0~1): 기존 이동 애니메이션 + 호버 효과
-    let translateX = -CARD_OVERLAP_OFFSET - scrollProgress * CARD_TRANSLATE_X_MULTIPLIER;
+    let translateX = -getCoverAlignedTranslateX(scrollProgress);
     const rotateAngle = CARD_ROTATE_START_ANGLE - scrollProgress * CARD_ROTATE_MULTIPLIER; // 2deg → -2deg
     
     // 호버 애니메이션: 벌려진 후 원래 위치로
@@ -84,7 +98,7 @@ export const getRightCardTransform = (
       translateX -= CARD_HOVER_SEPARATION / 2;
     } else if (hoverPhase === 'close') {
       // 2단계: 원래 위치로 돌아가기 (z축은 변경됨)
-      translateX = -CARD_OVERLAP_OFFSET - scrollProgress * CARD_TRANSLATE_X_MULTIPLIER;
+      translateX = -getCoverAlignedTranslateX(scrollProgress);
     }
     
     return `scale(${CARD_SCALE}) translateX(${translateX}%) rotate(${rotateAngle}deg)`;
@@ -113,7 +127,7 @@ export const getLeftCardTransition = (
     return 'all 1s ease-out';
   }
   
-  if (scrollProgress < 1) {
+  if (scrollProgress < 2) {
     return `transform ${HOVER_TRANSITION_DURATION} ${HOVER_TRANSITION_EASING}`;
   }
   
@@ -143,7 +157,7 @@ export const getRightCardTransition = (
     return 'all 1s ease-out';
   }
   
-  if (scrollProgress < 1) {
+  if (scrollProgress < 2) {
     return `transform ${HOVER_TRANSITION_DURATION} ${HOVER_TRANSITION_EASING}`;
   }
   
@@ -153,4 +167,3 @@ export const getRightCardTransition = (
   
   return 'none';
 };
-

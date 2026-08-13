@@ -55,6 +55,34 @@ body {
   animation: home-card-shake 0.2s ease-in-out;
 }
 
+.desktop-background {
+  background:
+    radial-gradient(circle at 75% 10%, rgba(147, 51, 234, 0.2), transparent 38%),
+    rgb(15 23 42);
+}
+
+.desktop-brand {
+  color: rgb(196 181 253);
+  font-family: ui-sans-serif, system-ui, sans-serif;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+}
+
+.desktop-card-stage {
+  height: min(90vh, calc(75vw - 1.5rem));
+}
+
+.desktop-photo-card {
+  background:
+    radial-gradient(circle at 100% 0%, rgba(34, 211, 238, 0.16), transparent 44%),
+    rgb(15 23 42);
+  border: 1px solid rgba(34, 211, 238, 0.28);
+  box-shadow:
+    0 24px 60px rgba(0, 0, 0, 0.34),
+    0 0 28px rgba(34, 211, 238, 0.08);
+}
+
 @media (max-width: 600px) {
   html {
     font-size: 16px;

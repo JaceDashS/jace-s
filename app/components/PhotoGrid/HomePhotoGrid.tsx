@@ -17,6 +17,7 @@ type LoadState = 'loading' | 'loaded' | 'failed';
 interface HomePhotoGridProps {
   opacity: number;
   photoCardFade: number;
+  instantSwitch?: boolean;
   onLoaded?: () => void;
   maxWaitMs?: number;
   onProgress?: (completed: number, total: number) => void;
@@ -25,6 +26,7 @@ interface HomePhotoGridProps {
 export default function HomePhotoGrid({
   opacity,
   photoCardFade,
+  instantSwitch = false,
   onLoaded,
   maxWaitMs = DEFAULT_MAX_WAIT_MS,
   onProgress,
@@ -233,6 +235,7 @@ export default function HomePhotoGrid({
       className={styles.gridContainer}
       style={{
         opacity,
+        transition: instantSwitch ? 'none' : undefined,
         pointerEvents: photoCardFade > 0.01 ? 'auto' : 'none',
       }}
     >
@@ -424,4 +427,3 @@ export default function HomePhotoGrid({
     </div>
   );
 }
-

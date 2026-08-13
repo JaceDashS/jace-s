@@ -2,7 +2,7 @@
  * 카드 앞면 컴포넌트
  */
 import { useState, useEffect, useLayoutEffect, useRef, useMemo } from 'react';
-import type { MouseEvent } from 'react';
+import type { CSSProperties, MouseEvent } from 'react';
 import { PROJECTS_PER_PAGE } from '../../constants/gridConstants';
 import type { Language } from '../../types/mainContent';
 import type { App } from '../../types/app';
@@ -54,6 +54,10 @@ const RESPONSIVE_CONFIG = {
     MIN: 0.62,
     WIDTH_REFERENCE_PX: 400,
     HEIGHT_REFERENCE_PX: 520,
+  },
+  DESKTOP_HEIGHT_SCALE: {
+    MIN: 0.72,
+    REFERENCE_PX: 720,
   },
   SMALL_BUTTON_PADDING: {
     MIN_PX: 4,
@@ -156,6 +160,7 @@ export default function CardFront({
   const homePhotosLoadStartedRef = useRef(false);
   const isHomeLinksActive = scrollProgress === 0;
   const isCompactHome = compactTypography && scrollProgress === 0;
+  const desktopCardAccent = appsFade > greetingFade ? '34 211 238' : '168 85 247';
   
   // 언어별 페이지네이션 텍스트
   const paginationText = {
@@ -365,6 +370,26 @@ export default function CardFront({
         RESPONSIVE_CONFIG.DESCRIPTION_FONT.MAX,
         containerWidth
       );
+      const desktopHeightScale = compactTypography
+        ? 1
+        : Math.max(
+            RESPONSIVE_CONFIG.DESKTOP_HEIGHT_SCALE.MIN,
+            Math.min(
+              1,
+              containerHeight / RESPONSIVE_CONFIG.DESKTOP_HEIGHT_SCALE.REFERENCE_PX
+            )
+          );
+
+      if (!compactTypography) {
+        greetingSizeRem = Math.max(
+          RESPONSIVE_CONFIG.GREETING_FONT.MIN,
+          greetingSizeRem * desktopHeightScale
+        );
+        descSizeRem = Math.max(
+          RESPONSIVE_CONFIG.DESCRIPTION_FONT.MIN,
+          descSizeRem * desktopHeightScale
+        );
+      }
 
       if (compactTypography) {
         const fadeContainer = fadeContainerRef.current;
@@ -543,7 +568,7 @@ export default function CardFront({
         const ratio = (width - buttonMinWidth) / (buttonMaxWidth - buttonMinWidth);
         return min + (max - min) * ratio;
       };
-      const compactButtonScale = compactTypography
+      const controlScale = compactTypography
         ? Math.max(
             RESPONSIVE_CONFIG.COMPACT_BUTTON_SCALE.MIN,
             Math.min(
@@ -552,46 +577,51 @@ export default function CardFront({
               containerHeight / RESPONSIVE_CONFIG.COMPACT_BUTTON_SCALE.HEIGHT_REFERENCE_PX
             )
           )
-        : 1;
+        : desktopHeightScale;
+      const scaleControl = (value: number, minimum: number) => compactTypography
+        ? value * controlScale
+        : Math.max(minimum, value * controlScale);
       
       // 큰 버튼 패딩
-      const buttonPx = buttonInterpolate(
-        BUTTON_PADDING.MIN_PX,
-        buttonMaxPx,
-        containerWidth
-      ) * compactButtonScale;
-      const buttonPy = buttonInterpolate(
-        BUTTON_PADDING.MIN_PY,
-        buttonMaxPy,
-        containerWidth
-      ) * compactButtonScale;
+      const buttonPx = scaleControl(
+        buttonInterpolate(BUTTON_PADDING.MIN_PX, buttonMaxPx, containerWidth),
+        BUTTON_PADDING.MIN_PX
+      );
+      const buttonPy = scaleControl(
+        buttonInterpolate(BUTTON_PADDING.MIN_PY, buttonMaxPy, containerWidth),
+        BUTTON_PADDING.MIN_PY
+      );
       
       // 작은 버튼 패딩
-      const smallPx = buttonInterpolate(
-        RESPONSIVE_CONFIG.SMALL_BUTTON_PADDING.MIN_PX,
-        smallMaxPx,
-        containerWidth
-      ) * compactButtonScale;
-      const smallPy = buttonInterpolate(
-        RESPONSIVE_CONFIG.SMALL_BUTTON_PADDING.MIN_PY,
-        smallMaxPy,
-        containerWidth
-      ) * compactButtonScale;
+      const smallPx = scaleControl(
+        buttonInterpolate(
+          RESPONSIVE_CONFIG.SMALL_BUTTON_PADDING.MIN_PX,
+          smallMaxPx,
+          containerWidth
+        ),
+        RESPONSIVE_CONFIG.SMALL_BUTTON_PADDING.MIN_PX
+      );
+      const smallPy = scaleControl(
+        buttonInterpolate(
+          RESPONSIVE_CONFIG.SMALL_BUTTON_PADDING.MIN_PY,
+          smallMaxPy,
+          containerWidth
+        ),
+        RESPONSIVE_CONFIG.SMALL_BUTTON_PADDING.MIN_PY
+      );
       
       // 버튼 폰트 크기
-      const buttonFontSizeRem = buttonInterpolate(
-        BUTTON_FONT.MIN,
-        buttonFontMax,
-        containerWidth
-      ) * compactButtonScale;
+      const buttonFontSizeRem = scaleControl(
+        buttonInterpolate(BUTTON_FONT.MIN, buttonFontMax, containerWidth),
+        BUTTON_FONT.MIN
+      );
       const newButtonFontSize = buttonFontSizeRem + 'rem';
       
       // 아이콘 크기
-      const iconSizeRem = buttonInterpolate(
-        ICON_SIZE.MIN,
-        iconSizeMax,
-        containerWidth
-      ) * compactButtonScale;
+      const iconSizeRem = scaleControl(
+        buttonInterpolate(ICON_SIZE.MIN, iconSizeMax, containerWidth),
+        ICON_SIZE.MIN
+      );
       const newIconSize = iconSizeRem + 'rem';
       
       setFontSize(greetingSize);
@@ -713,7 +743,13 @@ export default function CardFront({
     <div
       ref={containerRef}
       className={`${styles.cardContainer} ${compactTypography ? styles.compactTypography : ''} relative`}
-      style={{ pointerEvents: disablePointerEvents ? 'none' : 'auto' }}
+      inert={disablePointerEvents}
+      aria-hidden={disablePointerEvents || undefined}
+      style={{
+        pointerEvents: disablePointerEvents ? 'none' : 'auto',
+        '--mobile-card-accent': compactTypography ? undefined : desktopCardAccent,
+        '--mobile-card-glow-opacity': compactTypography ? undefined : 0.18,
+      } as CSSProperties}
     >
       {/* 텍스트 컨테이너 - 남은 공간을 모두 차지 */}
       <div className={styles.textContainer}>
@@ -792,7 +828,7 @@ export default function CardFront({
           <h2 className={styles.sectionTitle}>{uiCopy.appsTitle}</h2>
           {/* 앱 목록 - 버튼 영역을 제외한 전체 공간 사용 */}
           <div
-            className={`${styles.appsList} ${compactTypography ? styles.compactAppsList : ''}`}
+            className={`${styles.appsList} ${styles.compactAppsList} ${compactTypography ? '' : styles.desktopCompactAppsList}`}
             data-card-scroll-region
           >
             {apps
@@ -803,7 +839,7 @@ export default function CardFront({
                   app={app}
                   buttonFontSize={buttonFontSize}
                   iconSize={iconSize}
-                  compact={compactTypography}
+                  compact
                   expanded={expandedAppId === app.id}
                   closeLabel={closeAppModalText[language]}
                   onToggle={() => {

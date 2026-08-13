@@ -15,6 +15,7 @@ export const CARD_HOVER_SEPARATION = CARD_OVERLAP_OFFSET * -1.3; // 기본값: �
 
 // 카드 이동 애니메이션 상수
 export const CARD_TRANSLATE_X_MULTIPLIER = 80; // scrollProgress에 곱해지는 translateX 배율 (퍼센트 단위)
+export const CARD_COVER_PROGRESS = 0.5;
 export const CARD_ROTATE_START_ANGLE = 2; // 카드 회전 시작 각도 (도)
 export const CARD_ROTATE_END_ANGLE = -2; // 카드 회전 끝 각도 (도)
 export const CARD_ROTATE_MULTIPLIER = 4; // scrollProgress에 곱해지는 회전 각도 배율
@@ -26,4 +27,3 @@ export const CARD_Z_INDEX = {
   HOVER_LEFT: 5,
   HOVER_RIGHT: 20,
 } as const;
-

@@ -12,6 +12,7 @@ const COMMENTS_PER_PAGE = 4;
 interface CommentSectionProps {
   enabled?: boolean;
   title?: string;
+  compactLayout?: boolean;
 }
 
 interface ToastState {
@@ -19,7 +20,11 @@ interface ToastState {
   tone: 'success' | 'error';
 }
 
-export default function CommentSection({ enabled = true, title = 'Comments' }: CommentSectionProps) {
+export default function CommentSection({
+  enabled = true,
+  title = 'Comments',
+  compactLayout = false,
+}: CommentSectionProps) {
   const [comments, setComments] = useState<CommentItem[]>([]);
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [totalCount, setTotalCount] = useState<number>(0);
@@ -303,7 +308,7 @@ export default function CommentSection({ enabled = true, title = 'Comments' }: C
 
 
   return (
-    <div className={styles.container}>
+    <div className={`${styles.container} ${compactLayout ? styles.compactLayout : ''}`}>
       <div className={styles.topBar}>
         <h2 className={styles.title}>{title}</h2>
 
@@ -352,7 +357,17 @@ export default function CommentSection({ enabled = true, title = 'Comments' }: C
               onClick={closeComposer}
               aria-label="Close comment form"
             >
-              ×
+              <svg
+                className={styles.closeComposerIcon}
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                aria-hidden="true"
+                focusable="false"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
+              </svg>
             </button>
           </div>
           <form
@@ -435,6 +450,7 @@ export default function CommentSection({ enabled = true, title = 'Comments' }: C
               comment={comment}
               apiUrl={apiUrl}
               onReload={() => fetchComments(currentPage)}
+              compact={compactLayout}
             />
           ))
         )}

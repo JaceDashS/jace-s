@@ -14,9 +14,10 @@ const shouldLog = process.env.NEXT_PUBLIC_DEBUG_LOGS === 'true';
 interface AppPhotoGridProps {
   opacity: number;
   photoCardFade: number;
+  instantSwitch?: boolean;
 }
 
-export default function AppPhotoGrid({ opacity, photoCardFade }: AppPhotoGridProps) {
+export default function AppPhotoGrid({ opacity, photoCardFade, instantSwitch = false }: AppPhotoGridProps) {
   const [photos, setPhotos] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const hashString = (input: string): number => {
@@ -80,6 +81,7 @@ export default function AppPhotoGrid({ opacity, photoCardFade }: AppPhotoGridPro
       style={{
         gap: `${APP_PHOTO_GAP * 0.25}rem`,
         opacity,
+        transition: instantSwitch ? 'none' : undefined,
         pointerEvents: photoCardFade < 0.99 ? 'auto' : 'none',
       }}
     >
@@ -119,4 +121,3 @@ export default function AppPhotoGrid({ opacity, photoCardFade }: AppPhotoGridPro
     </div>
   );
 }
-

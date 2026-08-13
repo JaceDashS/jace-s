@@ -160,6 +160,7 @@ interface RightCardContentProps {
   onHomePhotosLoaded?: () => void;
   onHomePhotosProgress?: (completed: number, total: number) => void;
   certificateOnly?: boolean;
+  instantPhotoSwitch?: boolean;
 }
 
 export default function RightCardContent({ 
@@ -169,6 +170,7 @@ export default function RightCardContent({
   onHomePhotosLoaded,
   onHomePhotosProgress,
   certificateOnly = false,
+  instantPhotoSwitch = false,
 }: RightCardContentProps) {
   const [certifications, setCertifications] = useState<CertificationData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -310,10 +312,15 @@ export default function RightCardContent({
       <HomePhotoGrid
         opacity={photoCardFade}
         photoCardFade={photoCardFade}
+        instantSwitch={instantPhotoSwitch}
         onLoaded={onHomePhotosLoaded}
         onProgress={onHomePhotosProgress}
       />
-      <AppPhotoGrid opacity={1 - photoCardFade} photoCardFade={photoCardFade} />
+      <AppPhotoGrid
+        opacity={1 - photoCardFade}
+        photoCardFade={photoCardFade}
+        instantSwitch={instantPhotoSwitch}
+      />
     </div>
   );
 

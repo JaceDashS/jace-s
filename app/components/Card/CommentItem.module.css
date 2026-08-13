@@ -33,6 +33,9 @@
 .userInfo {
   display: flex;
   align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex: 1 1 auto;
   min-width: 0;
 }
 
@@ -55,13 +58,19 @@
 }
 
 .userTime {
+  margin-left: auto;
   color: rgba(255, 255, 255, 0.6);
   font-size: var(--mobile-font-sm, 0.875rem);
+  text-align: right;
+  white-space: nowrap;
 }
 
 .userTimeChild {
+  margin-left: auto;
   color: rgba(255, 255, 255, 0.5);
   font-size: var(--mobile-font-xs, 0.75rem);
+  text-align: right;
+  white-space: nowrap;
 }
 
 .menuButton {
@@ -384,12 +393,14 @@
 }
 
 .replyButton {
+  display: block;
   color: rgb(147 197 253);
   transition-property: color;
   transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
   transition-duration: 150ms;
   font-size: var(--mobile-font-sm, 0.875rem);
   margin-top: 0.5rem;
+  margin-left: auto;
 }
 
 .replyButton:hover {
@@ -413,6 +424,33 @@
   gap: 0.5rem;
   width: 25%;
   min-width: 100px;
+}
+
+.compactComment.commentContainer {
+  border: 1px solid rgba(244, 114, 182, 0.14);
+  border-radius: 0.7rem;
+  background: rgba(15, 23, 42, 0.42);
+}
+
+.compactComment.commentParent {
+  padding: 0.75rem;
+}
+
+.compactComment.commentChild {
+  margin: 0 0.5rem 0.45rem;
+  padding: 0.6rem 0.65rem;
+  border-color: rgba(255, 255, 255, 0.1);
+  border-radius: 0.55rem;
+  background: rgba(255, 255, 255, 0.035);
+}
+
+.compactComment .header {
+  margin-bottom: 0.4rem;
+}
+
+.compactComment .content {
+  margin-bottom: 0.4rem;
+  line-height: 1.45;
 }
 
 @media (max-width: 640px) {

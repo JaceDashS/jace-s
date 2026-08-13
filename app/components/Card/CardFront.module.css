@@ -225,6 +225,14 @@
   scrollbar-gutter: auto;
 }
 
+.desktopCompactAppsList {
+  grid-template-columns: repeat(auto-fit, minmax(5rem, 7.5rem));
+  align-content: center;
+  justify-content: center;
+  gap: clamp(0.75rem, 1.5vw, 1.25rem);
+  padding: 0.5rem;
+}
+
 .appsList::-webkit-scrollbar {
   display: block;
   width: 8px;

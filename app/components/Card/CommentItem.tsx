@@ -26,6 +26,7 @@ interface CommentItemProps {
   comment: CommentItem;
   apiUrl?: string;
   onReload?: () => void;
+  compact?: boolean;
 }
 
 interface UpdateCommentPayload {
@@ -66,7 +67,7 @@ const formatTime = (dateString: string): string => {
   }
 };
 
-export default function CommentItemComponent({ comment, apiUrl, onReload }: CommentItemProps) {
+export default function CommentItemComponent({ comment, apiUrl, onReload, compact = false }: CommentItemProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [editContent, setEditContent] = useState('');
@@ -261,17 +262,15 @@ export default function CommentItemComponent({ comment, apiUrl, onReload }: Comm
   };
 
   return (
-    <div className={`${styles.commentContainer} ${isParent ? styles.commentParent : styles.commentChild}`}>
+    <div className={`${styles.commentContainer} ${compact ? styles.compactComment : ''} ${isParent ? styles.commentParent : styles.commentChild}`}>
       {/* 헤더 섹션 */}
       <div className={styles.header}>
         <div className={styles.userInfo}>
-          <div>
-            <div className={isParent ? styles.userName : styles.userNameChild}>
-              {comment.hashedUser}
-            </div>
-            <div className={isParent ? styles.userTime : styles.userTimeChild}>
-              {formatTime(comment.createdAt)}
-            </div>
+          <div className={isParent ? styles.userName : styles.userNameChild}>
+            {comment.hashedUser}
+          </div>
+          <div className={isParent ? styles.userTime : styles.userTimeChild}>
+            {formatTime(comment.createdAt)}
           </div>
         </div>
         {/* 부모 댓글과 대댓글 모두에 메뉴 버튼 표시 */}
@@ -420,6 +419,7 @@ export default function CommentItemComponent({ comment, apiUrl, onReload }: Comm
                       comment={child}
                       apiUrl={apiUrl}
                       onReload={onReload}
+                      compact={compact}
                     />
                   ))}
               </div>

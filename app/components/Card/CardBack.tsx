@@ -164,11 +164,15 @@ export default function CardBack({
   return (
     <div
       ref={containerRef}
-      className={`${styles.cardContainer} ${compact ? styles.compactCard : ''}`}
+      className={`${styles.cardContainer} ${showComments ? styles.commentsCard : styles.certificateCard} ${!showComments && !compact ? styles.desktopCertificateCard : ''} ${compact ? styles.compactCard : ''}`}
     >
       {/* 댓글 섹션: 항상 마운트되어 미리 로드, 보이지 않을 때는 숨김 */}
       <div style={{ display: showComments ? 'block' : 'none', height: '100%', minHeight: 0 }}>
-        <CommentSection enabled={shouldLoadDesktopComments} title={uiCopy.commentsTitle} />
+        <CommentSection
+          compactLayout={!compact}
+          enabled={shouldLoadDesktopComments}
+          title={uiCopy.commentsTitle}
+        />
       </div>
       
       {/* 자격증 그리드: 댓글이 보일 때는 숨김 */}
