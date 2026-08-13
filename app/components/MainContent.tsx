@@ -4,6 +4,7 @@ import { useCallback, useState, useEffect, useRef } from 'react';
 import type { CSSProperties } from 'react';
 import { usePathname } from 'next/navigation';
 import WelcomeScreen from './WelcomeScreen';
+import MobileContent from './MobileContent';
 
 // 상수 import
 import { CARD_SCALE, CARD_Z_INDEX } from '../constants/cardConstants';
@@ -37,11 +38,14 @@ interface AppsApiResponse {
 type ProfileLinks = Record<string, string>;
 
 const shouldLog = process.env.NEXT_PUBLIC_DEBUG_LOGS === 'true';
+const WELCOME_SESSION_KEY = 'jace-s:welcome-complete';
+type WelcomeMode = 'checking' | 'full' | 'returning';
 
 export default function MainContent() {
   // 상수들을 별도 파일에서 import하여 사용
 
   const [showContent, setShowContent] = useState(false);
+  const [welcomeMode, setWelcomeMode] = useState<WelcomeMode>('checking');
   const [isAnimating, setIsAnimating] = useState(false);
   const [scrollProgress, setScrollProgress] = useState(0);
   // 카드 상태는 useCardState 훅으로 관리
@@ -80,9 +84,19 @@ export default function MainContent() {
   const homeCardShakeTimeoutRef = useRef<number | null>(null);
   // Welcome 화면 종료를 위한 로딩 상태 추적
   const [appsLoaded, setAppsLoaded] = useState(false);
+  const [profileLoaded, setProfileLoaded] = useState(false);
   const [certificationsLoaded, setCertificationsLoaded] = useState(false);
   const [homePhotosLoaded, setHomePhotosLoaded] = useState(false);
   const [homePhotosProgress, setHomePhotosProgress] = useState({ completed: 0, total: 6 });
+
+  useEffect(() => {
+    try {
+      const hasCompletedWelcome = window.sessionStorage.getItem(WELCOME_SESSION_KEY) === 'true';
+      setWelcomeMode(hasCompletedWelcome ? 'returning' : 'full');
+    } catch {
+      setWelcomeMode('full');
+    }
+  }, []);
   
   // 환경변수 디버깅 (컴포넌트 마운트 시 한 번만 실행)
   useEffect(() => {
@@ -193,7 +207,8 @@ export default function MainContent() {
   const pathname = usePathname();
 
   // 모든 로딩 완료 상태
-  const allResourcesLoaded = appsLoaded && certificationsLoaded && homePhotosLoaded;
+  const allResourcesLoaded =
+    appsLoaded && profileLoaded && certificationsLoaded && homePhotosLoaded;
   const handleCertificationsLoaded = useCallback(() => {
     setCertificationsLoaded(true);
   }, []);
@@ -207,17 +222,23 @@ export default function MainContent() {
     }));
   }, []);
 
-  const handleWelcomeComplete = () => {
+  const handleWelcomeComplete = useCallback(() => {
+    try {
+      window.sessionStorage.setItem(WELCOME_SESSION_KEY, 'true');
+    } catch {
+      // 세션 저장소를 사용할 수 없는 환경에서도 화면 전환은 계속 진행한다.
+    }
     setShowContent(true);
     setTimeout(() => {
       setIsAnimating(true);
     }, 50);
-  };
+  }, []);
 
   const homeTotal = homePhotosProgress.total || 6;
-  const totalUnits = 2 + homeTotal;
+  const totalUnits = 3 + homeTotal;
   const completedUnits =
     (appsLoaded ? 1 : 0) +
+    (profileLoaded ? 1 : 0) +
     (certificationsLoaded ? 1 : 0) +
     Math.min(homePhotosProgress.completed, homeTotal);
   const progressPercent = totalUnits > 0 ? (completedUnits / totalUnits) * 100 : 0;
@@ -510,6 +531,9 @@ export default function MainContent() {
 
   // Profile Overview 로드
   useEffect(() => {
+    let cancelled = false;
+    setProfileLoaded(false);
+
     async function loadProfileOverview() {
       try {
         const manifest = await fetchAssetsManifest();
@@ -523,16 +547,24 @@ export default function MainContent() {
         }
         
         const currentLangData = profileData[language] || profileData['en'];
-        if (currentLangData) {
+        if (currentLangData && !cancelled) {
           setProfileName(currentLangData.name);
           setProfileDescription(currentLangData.description || '');
           setProfileLinks(currentLangData.links || null);
         }
       } catch {
         // Profile overview 로드 실패 시 조용히 처리
+      } finally {
+        if (!cancelled) {
+          setProfileLoaded(true);
+        }
       }
     }
     loadProfileOverview();
+
+    return () => {
+      cancelled = true;
+    };
   }, [language]);
 
 
@@ -548,12 +580,13 @@ export default function MainContent() {
       {!showContent && (
         <WelcomeScreen
           onComplete={handleWelcomeComplete}
-          ready={allResourcesLoaded}
+          ready={welcomeMode !== 'checking' && allResourcesLoaded}
           progressPercent={progressPercent}
+          compact={welcomeMode !== 'full'}
         />
       )}
       <div
-        className="min-h-[300vh]"
+        className="desktop-experience min-h-[300vh]"
         style={{
           opacity: showContent ? 1 : 0,
           pointerEvents: showContent ? 'auto' : 'none',
@@ -1032,6 +1065,20 @@ export default function MainContent() {
           <div ref={marker4Ref} className="h-screen flex items-center justify-center bg-slate-900 text-white">
           </div>
         </div>
+      <MobileContent
+        visible={showContent}
+        apps={apps}
+        currentProjectPage={currentProjectPage}
+        setCurrentProjectPage={setCurrentProjectPage}
+        language={language}
+        setLanguage={setLanguage}
+        certificationText={certificationText}
+        profileName={profileName}
+        profileDescription={profileDescription}
+        profileLinks={profileLinks || undefined}
+        greetingText={greetingText[language]}
+        nameSuffix={nameSuffix[language]}
+      />
     </>
   );
 }

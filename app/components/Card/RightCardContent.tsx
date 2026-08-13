@@ -62,9 +62,10 @@ interface PdfViewerProps {
   url: string | null;
   className?: string;
   canvasClassName?: string;
+  isScrollRegion?: boolean;
 }
 
-function PdfViewer({ url, className, canvasClassName }: PdfViewerProps) {
+function PdfViewer({ url, className, canvasClassName, isScrollRegion = false }: PdfViewerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -143,7 +144,13 @@ function PdfViewer({ url, className, canvasClassName }: PdfViewerProps) {
     };
   }, [url, canvasClassName]);
 
-  return <div ref={containerRef} className={className} />;
+  return (
+    <div
+      ref={containerRef}
+      className={className}
+      data-card-scroll-region={isScrollRegion ? true : undefined}
+    />
+  );
 }
 
 interface RightCardContentProps {
@@ -152,6 +159,7 @@ interface RightCardContentProps {
   onCertificationsLoaded?: () => void;
   onHomePhotosLoaded?: () => void;
   onHomePhotosProgress?: (completed: number, total: number) => void;
+  certificateOnly?: boolean;
 }
 
 export default function RightCardContent({ 
@@ -160,11 +168,13 @@ export default function RightCardContent({
   onCertificationsLoaded,
   onHomePhotosLoaded,
   onHomePhotosProgress,
+  certificateOnly = false,
 }: RightCardContentProps) {
   const [certifications, setCertifications] = useState<CertificationData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [resolvedPdfUrl, setResolvedPdfUrl] = useState<string | null>(null);
   const [shouldLoadPdf, setShouldLoadPdf] = useState(false);
+  const [pdfStatus, setPdfStatus] = useState<'idle' | 'loading' | 'ready' | 'failed'>('idle');
   const hasPreloadedPdfsRef = useRef(false);
 
   useEffect(() => {
@@ -221,6 +231,7 @@ export default function RightCardContent({
     if (selectedCertification) {
       // flip 애니메이션 시작 시 일시적으로 표시만 숨김 (resolvedPdfUrl은 유지)
       setShouldLoadPdf(false);
+      setPdfStatus('loading');
       
       const timer = setTimeout(() => {
         setShouldLoadPdf(true);
@@ -233,6 +244,7 @@ export default function RightCardContent({
       // certification이 없으면 즉시 리셋
       setShouldLoadPdf(false);
       setResolvedPdfUrl(null);
+      setPdfStatus('idle');
     }
   }, [selectedCertification]);
 
@@ -241,6 +253,7 @@ export default function RightCardContent({
       if (resolvedPdfUrl !== null) {
         setResolvedPdfUrl(null);
       }
+      setPdfStatus(selectedCertification ? 'failed' : 'idle');
       return;
     }
 
@@ -248,6 +261,7 @@ export default function RightCardContent({
 
     let cancelled = false;
     const originalUrl = pdfDoc.url;
+    setPdfStatus('loading');
 
     const checkUrl = async (url: string) => {
       try {
@@ -263,6 +277,7 @@ export default function RightCardContent({
       if (cancelled) return;
       if (okOriginal) {
         setResolvedPdfUrl(originalUrl);
+        setPdfStatus('ready');
         return;
       }
 
@@ -272,12 +287,14 @@ export default function RightCardContent({
 
       if (!fallbackUrl) {
         setResolvedPdfUrl(null);
+        setPdfStatus('failed');
         return;
       }
 
       const okFallback = await checkUrl(fallbackUrl);
       if (!cancelled) {
         setResolvedPdfUrl(okFallback ? fallbackUrl : null);
+        setPdfStatus(okFallback ? 'ready' : 'failed');
       }
     };
 
@@ -286,7 +303,7 @@ export default function RightCardContent({
     return () => {
       cancelled = true;
     };
-  }, [pdfDoc?.url, resolvedPdfUrl, shouldLoadPdf]);
+  }, [pdfDoc?.url, resolvedPdfUrl, selectedCertification, shouldLoadPdf]);
 
   const photoGridContent = (
     <div className={styles.container}>
@@ -301,13 +318,16 @@ export default function RightCardContent({
   );
 
   // 뒷면: 자격증
-  const shouldShowEmptyMessage = Boolean(selectedCertification) && !resolvedPdfUrl;
+  const shouldShowEmptyMessage = Boolean(selectedCertification) && pdfStatus === 'failed';
   const certificationContent = (
-    <div className={styles.certContainer}>
+    <div className={`${styles.certContainer} ${certificateOnly ? styles.certContainerStandalone : ''}`}>
           {isLoading ? (
         <div className={styles.loadingText}>Loading...</div>
           ) : (
             <>
+          {pdfStatus === 'loading' && (
+            <div className={styles.documentLoadingText}>Loading certificate...</div>
+          )}
           {/* PDF viewer은 항상 렌더링 (프리로드용), PDF URL이 있을 때만 표시 */}
           <div
             className={styles.documentPdf}
@@ -317,6 +337,7 @@ export default function RightCardContent({
               url={resolvedPdfUrl && shouldLoadPdf ? resolvedPdfUrl : null}
               className={styles.pdfViewer}
               canvasClassName={styles.pdfCanvas}
+              isScrollRegion={certificateOnly}
             />
           </div>
           {shouldShowEmptyMessage && (
@@ -330,6 +351,10 @@ export default function RightCardContent({
           )}
         </div>
     );
+
+  if (certificateOnly) {
+    return certificationContent;
+  }
 
   return (
     <div className={styles.flipContainer}>

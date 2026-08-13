@@ -21,6 +21,15 @@
   transform: scale(1.05);
 }
 
+.overlayCompact {
+  transition-duration: 220ms;
+}
+
+.overlayCompact.overlayExiting {
+  filter: none;
+  transform: none;
+}
+
 .overlayBlocking {
   opacity: 0;
   filter: blur(0);
@@ -83,3 +92,10 @@
   transition: width 220ms ease;
 }
 
+@media (prefers-reduced-motion: reduce) {
+  .overlay,
+  .content,
+  .progressBar {
+    transition-duration: 1ms;
+  }
+}

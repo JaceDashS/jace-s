@@ -47,6 +47,11 @@
   padding: 2rem;
 }
 
+.certContainerStandalone {
+  padding: 0;
+  background: rgb(17 24 39);
+}
+
 .notFoundContainer {
   height: 100%;
   display: flex;
@@ -61,6 +66,10 @@
 
 .loadingText {
   color: rgb(75 85 99);
+}
+
+.documentLoadingText {
+  color: rgb(156 163 175);
 }
 
 .iconContainer {
@@ -139,6 +148,11 @@
   box-sizing: border-box;
 }
 
+.pdfViewer[data-card-scroll-region] {
+  touch-action: none;
+  overscroll-behavior: contain;
+}
+
 .pdfCanvas {
   width: 100%;
   height: auto;
@@ -147,5 +161,3 @@
   box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
   background: #fff;
 }
-
-

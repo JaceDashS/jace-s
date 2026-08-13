@@ -38,7 +38,7 @@
 
 .userName {
   font-weight: 500;
-  font-size: 1rem;
+  font-size: var(--mobile-font-md, 1rem);
   max-width: 18rem;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -47,7 +47,7 @@
 
 .userNameChild {
   font-weight: 500;
-  font-size: 0.875rem;
+  font-size: var(--mobile-font-sm, 0.875rem);
   max-width: 16rem;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -56,12 +56,12 @@
 
 .userTime {
   color: rgba(255, 255, 255, 0.6);
-  font-size: 0.875rem;
+  font-size: var(--mobile-font-sm, 0.875rem);
 }
 
 .userTimeChild {
   color: rgba(255, 255, 255, 0.5);
-  font-size: 0.75rem;
+  font-size: var(--mobile-font-xs, 0.75rem);
 }
 
 .menuButton {
@@ -168,14 +168,14 @@
 
 .content {
   margin-bottom: 0.5rem;
-  font-size: 1rem;
+  font-size: var(--mobile-font-md, 1rem);
   word-wrap: break-word;
   overflow-wrap: break-word;
   word-break: break-word;
 }
 
 .contentChild {
-  font-size: 0.875rem;
+  font-size: var(--mobile-font-sm, 0.875rem);
   word-wrap: break-word;
   overflow-wrap: break-word;
   word-break: break-word;
@@ -189,7 +189,7 @@
 
 .actionButton {
   color: rgba(255, 255, 255, 0.7);
-  font-size: 0.75rem;
+  font-size: var(--mobile-font-xs, 0.75rem);
   padding: 0;
   background: transparent;
   border: none;
@@ -201,12 +201,44 @@
 }
 
 @media (max-width: 640px) {
+  .commentContainer {
+    border: 1px solid rgba(244, 114, 182, 0.14);
+    border-radius: 0.7rem;
+    background: rgba(15, 23, 42, 0.42);
+  }
+
+  .commentParent {
+    padding: 0.6rem;
+  }
+
+  .commentChild {
+    margin: 0 0.45rem 0.4rem;
+    padding: 0.5rem 0.55rem;
+    border-color: rgba(255, 255, 255, 0.1);
+    border-radius: 0.55rem;
+    background: rgba(255, 255, 255, 0.035);
+  }
+
+  .header {
+    margin-bottom: 0.35rem;
+  }
+
+  .userName {
+    font-size: var(--mobile-font-sm, 0.875rem);
+  }
+
+  .userTime {
+    font-size: var(--mobile-font-2xs, 0.625rem);
+  }
+
   .content {
-    font-size: 0.875rem;
+    font-size: var(--mobile-font-sm, 0.875rem);
+    line-height: 1.45;
+    margin-bottom: 0.35rem;
   }
   
   .contentChild {
-    font-size: 0.75rem;
+    font-size: var(--mobile-font-xs, 0.75rem);
   }
 }
 
@@ -356,7 +388,7 @@
   transition-property: color;
   transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
   transition-duration: 150ms;
-  font-size: 0.875rem;
+  font-size: var(--mobile-font-sm, 0.875rem);
   margin-top: 0.5rem;
 }
 
@@ -394,4 +426,3 @@
   color: rgba(255, 255, 255, 0.5);
   font-style: italic;
 }
-

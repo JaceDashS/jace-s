@@ -56,26 +56,15 @@ body {
 }
 
 @media (max-width: 600px) {
+  html {
+    font-size: 16px;
+  }
+
   body {
     overflow: hidden;
   }
 
-  body > * {
+  .desktop-experience {
     display: none;
-  }
-
-  body::before {
-    content: "모바일 폼은 준비중입니다";
-    position: fixed;
-    inset: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background-color: rgb(15 23 42);
-    color: rgba(255, 255, 255, 0.9);
-    font-size: 1rem;
-    text-align: center;
-    padding: 1.5rem;
-    z-index: 9999;
   }
 }

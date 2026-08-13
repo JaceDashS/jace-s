@@ -5,6 +5,7 @@
 .container {
   width: 100%;
   height: 100%;
+  position: relative;
   display: grid;
   grid-template-rows: auto auto auto auto minmax(0, 1fr) auto auto;
   color: rgb(255 255 255);
@@ -14,8 +15,22 @@
   max-height: 100%;
 }
 
+.addCommentButton,
+.composerBackdrop,
+.composerHeader {
+  display: none;
+}
+
+.topBar {
+  min-width: 0;
+}
+
+.composerLayer {
+  display: contents;
+}
+
 .title {
-  font-size: 2.25rem;
+  font-size: var(--mobile-font-page-title, 2.25rem);
   line-height: 2.5rem;
   font-weight: 700;
   margin-bottom: 1.5rem;
@@ -25,7 +40,7 @@
 
 @media (max-width: 640px) {
   .title {
-    font-size: 1.75rem;
+    font-size: var(--mobile-font-page-title, 1.75rem);
     line-height: 2rem;
     margin-bottom: 1rem;
   }
@@ -33,14 +48,14 @@
 
 .infoText {
   color: rgba(255, 255, 255, 0.6);
-  font-size: 0.875rem;
+  font-size: var(--mobile-font-sm, 0.875rem);
   margin-bottom: 1rem;
   flex-shrink: 0;
 }
 
 @media (max-width: 640px) {
   .infoText {
-    font-size: 0.75rem;
+    font-size: var(--mobile-font-xs, 0.75rem);
     margin-bottom: 0.75rem;
   }
 }
@@ -139,6 +154,181 @@
   background-color: rgb(126 34 206);
 }
 
+.submitButton:disabled {
+  opacity: 0.65;
+  cursor: wait;
+}
+
+.toast {
+  position: absolute;
+  top: 0.75rem;
+  left: 50%;
+  z-index: 80;
+  width: max-content;
+  max-width: calc(100% - 1.5rem);
+  padding: 0.7rem 0.9rem;
+  border: 1px solid rgba(134, 239, 172, 0.35);
+  border-radius: 0.75rem;
+  background: rgba(20, 83, 45, 0.96);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.35);
+  color: rgb(240 253 244);
+  font-size: var(--mobile-font-xs, 0.8rem);
+  line-height: 1.25rem;
+  text-align: center;
+  transform: translateX(-50%);
+  animation: toastEnter 180ms ease-out;
+}
+
+.toastError {
+  border-color: rgba(253, 164, 175, 0.35);
+  background: rgba(136, 19, 55, 0.96);
+  color: rgb(255 241 242);
+}
+
+@keyframes toastEnter {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -0.4rem);
+  }
+
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+}
+
+@media (max-width: 600px) {
+  .container {
+    grid-template-rows: auto auto minmax(0, 1fr) auto;
+  }
+
+  .topBar {
+    margin-bottom: clamp(0.35rem, 1.5vh, 0.65rem);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+  }
+
+  .topBar .title {
+    min-width: 0;
+    margin: 0;
+    font-size: clamp(1.1rem, min(7vw, 4.5vh), 1.5rem);
+    line-height: 1.15;
+  }
+
+  .infoText {
+    display: none;
+  }
+
+  .addCommentButton {
+    width: auto;
+    min-width: 3.75rem;
+    min-height: 2.25rem;
+    margin: 0;
+    padding: 0.35rem 0.65rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid rgba(244, 114, 182, 0.4);
+    gap: 0.2rem;
+    border-radius: 999px;
+    background: rgb(190 24 93 / 0.72);
+    color: rgb(255 241 242);
+    font-size: var(--mobile-font-xs, 0.75rem);
+    font-weight: 700;
+    transition:
+      background-color 150ms ease,
+      border-color 150ms ease,
+      transform 150ms ease;
+  }
+
+  .addCommentButton:active {
+    background: rgba(244, 114, 182, 0.22);
+    border-color: rgba(244, 114, 182, 0.65);
+    transform: scale(0.99);
+  }
+
+  .composerLayer {
+    position: absolute;
+    inset: 0;
+    z-index: 50;
+    display: none;
+    align-items: flex-end;
+  }
+
+  .composerLayerOpen {
+    display: flex;
+  }
+
+  .composerBackdrop {
+    position: absolute;
+    inset: 0;
+    display: block;
+    border: 0;
+    background: rgba(2, 6, 23, 0.72);
+    backdrop-filter: blur(3px);
+  }
+
+  .composerLayer .formContainer {
+    width: 100%;
+    max-height: calc(100% - 1rem);
+    position: relative;
+    z-index: 1;
+    margin: 0;
+    padding: 1rem;
+    overflow-y: auto;
+    border-color: rgba(244, 114, 182, 0.35);
+    border-radius: 1rem 1rem 0 0;
+    background:
+      radial-gradient(circle at 100% 0%, rgba(244, 114, 182, 0.16), transparent 44%),
+      rgb(30 41 55);
+    box-shadow: 0 -20px 50px rgba(0, 0, 0, 0.4);
+    box-sizing: border-box;
+  }
+
+  .composerHeader {
+    margin-bottom: 1rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .composerTitle {
+    margin: 0;
+    color: rgb(255 255 255);
+    font-family: ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
+    font-size: var(--mobile-font-composer-title, 1.4rem);
+    font-weight: 700;
+  }
+
+  .closeComposerButton {
+    width: 2.25rem;
+    height: 2.25rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.08);
+    color: rgba(255, 255, 255, 0.8);
+    font-size: 1.4rem;
+    line-height: 1;
+  }
+
+  .composerLayer .formGrid {
+    gap: 0.75rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .toast,
+  .addCommentButton {
+    animation-duration: 1ms;
+    transition-duration: 1ms;
+  }
+}
+
 .rulesToggle {
   margin-bottom: 1rem;
   flex-shrink: 0;
@@ -146,7 +336,7 @@
 
 @media (max-width: 640px) {
   .rulesToggle {
-    margin-bottom: 0.75rem;
+    margin-bottom: 0.35rem;
   }
 }
 
@@ -155,7 +345,7 @@
   transition-property: color;
   transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
   transition-duration: 150ms;
-  font-size: 0.875rem;
+  font-size: var(--mobile-font-sm, 0.875rem);
 }
 
 .rulesButton:hover {
@@ -170,7 +360,36 @@
   flex-direction: column;
   gap: 0.5rem;
   color: rgba(255, 255, 255, 0.7);
-  font-size: 0.875rem;
+  font-size: var(--mobile-font-sm, 0.875rem);
+}
+
+@media (max-width: 600px) {
+  .rulesToggle {
+    position: relative;
+    z-index: 20;
+  }
+
+  .rulesButton {
+    font-size: var(--mobile-font-2xs, 0.625rem);
+  }
+
+  .rulesList {
+    max-height: min(55dvh, 18rem);
+    position: absolute;
+    top: calc(100% + 0.35rem);
+    left: 0;
+    right: 0;
+    z-index: 30;
+    margin: 0;
+    padding: 0.8rem 0.8rem 0.8rem 1.8rem;
+    overflow-y: auto;
+    border: 1px solid rgba(244, 114, 182, 0.3);
+    border-radius: 0.75rem;
+    background: rgba(15, 23, 42, 0.98);
+    box-shadow: 0 1rem 2.5rem rgba(0, 0, 0, 0.42);
+    font-size: var(--mobile-font-xs, 0.75rem);
+    line-height: 1.45;
+  }
 }
 
 .commentsList {
@@ -210,8 +429,16 @@
 
 @media (max-width: 640px) {
   .commentsList {
-    margin-bottom: 0.25rem;
-    padding-bottom: 0.25rem;
+    gap: 0.5rem;
+    margin-bottom: 0;
+    padding: 0 0.15rem 0.25rem;
+    scrollbar-width: thin;
+  }
+}
+
+@media (max-width: 600px) {
+  .commentsList {
+    touch-action: none;
   }
 }
 
@@ -238,25 +465,30 @@
   position: relative;
   z-index: 10;
   box-sizing: border-box;
-  background-color: rgba(88, 28, 135, 0.95);
+  background-color: rgba(30, 41, 55, 0.96);
   backdrop-filter: blur(4px);
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  border-top: 1px solid rgba(244, 114, 182, 0.22);
 }
 
 @media (max-width: 640px) {
   .pagination {
-    gap: 0.5rem;
-    padding: 0.75rem 0.25rem;
+    gap: 0.4rem;
+    padding: 0.35rem 0 0;
+    border-top-color: rgba(244, 114, 182, 0.14);
+    background: linear-gradient(180deg, rgba(30, 41, 55, 0), rgba(30, 41, 55, 0.96) 35%);
   }
   
-  .paginationButton {
-    padding: 0.5rem 0.75rem;
-    font-size: 0.875rem;
-    min-width: 70px;
+  .pagination > .paginationButton {
+    width: 2.25rem;
+    min-width: 2.25rem;
+    height: 2.25rem;
+    padding: 0;
+    border-radius: 999px;
+    font-size: 1.25rem;
   }
   
   .paginationInfo {
-    font-size: 0.75rem;
+    font-size: var(--mobile-font-xs, 0.75rem);
     white-space: nowrap;
   }
 }
@@ -310,17 +542,31 @@
 
 .paginationInfo {
   color: rgba(255, 255, 255, 0.9);
-  font-size: 0.875rem;
+  font-size: var(--mobile-font-xs, 0.875rem);
   font-weight: 500;
   padding: 0 0.5rem;
   white-space: nowrap;
+}
+
+.paginationIcon {
+  display: none;
+}
+
+@media (max-width: 640px) {
+  .paginationLabel {
+    display: none;
+  }
+
+  .paginationIcon {
+    display: inline;
+  }
 }
 
 .footer {
   margin-top: 0;
   text-align: center;
   color: rgba(255, 255, 255, 0.5);
-  font-size: 0.75rem;
+  font-size: var(--mobile-font-xs, 0.75rem);
   flex-shrink: 0;
   padding-top: 0.5rem;
   padding-bottom: 0.25rem;
@@ -328,9 +574,7 @@
 
 @media (max-width: 640px) {
   .footer {
-    padding-top: 0.25rem;
-    font-size: 0.625rem;
-    padding-bottom: 0.125rem;
+    display: none;
   }
 }
 
@@ -345,12 +589,12 @@
 
 .loadingMore {
   color: rgba(255, 255, 255, 0.6);
-  font-size: 0.875rem;
+  font-size: var(--mobile-font-sm, 0.875rem);
 }
 
 .endMessage {
   text-align: center;
   color: rgba(255, 255, 255, 0.5);
-  font-size: 0.875rem;
+  font-size: var(--mobile-font-sm, 0.875rem);
   padding: 1rem;
 }

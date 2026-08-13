@@ -4,7 +4,9 @@
  */
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useId, useRef, useState } from 'react';
+import type { CSSProperties } from 'react';
+import { createPortal } from 'react-dom';
 import type { App } from '../../types/app';
 import ImageWithLoader from '../ImageWithLoader';
 import styles from './AppItem.module.css';
@@ -15,6 +17,10 @@ interface AppItemProps {
   app: App;
   buttonFontSize: string;
   iconSize: string;
+  compact?: boolean;
+  expanded?: boolean;
+  onToggle?: () => void;
+  closeLabel?: string;
 }
 
 // SVG 아이콘 컴포넌트들
@@ -54,9 +60,70 @@ const GithubIcon = ({ size }: { size: string }) => (
   </svg>
 );
 
-export default function AppItem({ app, buttonFontSize, iconSize }: AppItemProps) {
+export default function AppItem({
+  app,
+  buttonFontSize,
+  iconSize,
+  compact = false,
+  expanded = false,
+  onToggle,
+  closeLabel = 'Close',
+}: AppItemProps) {
   const [showDemo, setShowDemo] = useState(false);
+  const [modalOrigin, setModalOrigin] = useState({ x: 0, y: 0 });
+  const [isModalClosing, setIsModalClosing] = useState(false);
   const hasLoggedRef = useRef(false);
+  const appToggleRef = useRef<HTMLButtonElement>(null);
+  const modalRef = useRef<HTMLDivElement>(null);
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
+  const onToggleRef = useRef(onToggle);
+  const closeTimerRef = useRef<number | null>(null);
+  const isModalClosingRef = useRef(false);
+  const modalTitleId = useId();
+
+  useEffect(() => {
+    onToggleRef.current = onToggle;
+  }, [onToggle]);
+
+  const closeModal = useCallback(() => {
+    if (isModalClosingRef.current) {
+      return;
+    }
+
+    setShowDemo(false);
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      onToggleRef.current?.();
+      return;
+    }
+
+    isModalClosingRef.current = true;
+    setIsModalClosing(true);
+    closeTimerRef.current = window.setTimeout(() => {
+      closeTimerRef.current = null;
+      isModalClosingRef.current = false;
+      setIsModalClosing(false);
+      onToggleRef.current?.();
+    }, 180);
+  }, []);
+
+  const openModal = () => {
+    const triggerRect = appToggleRef.current?.getBoundingClientRect();
+    if (triggerRect) {
+      setModalOrigin({
+        x: triggerRect.left + triggerRect.width / 2 - window.innerWidth / 2,
+        y: triggerRect.top + triggerRect.height / 2 - window.innerHeight / 2,
+      });
+    }
+    isModalClosingRef.current = false;
+    setIsModalClosing(false);
+    onToggleRef.current?.();
+  };
+
+  useEffect(() => () => {
+    if (closeTimerRef.current !== null) {
+      window.clearTimeout(closeTimerRef.current);
+    }
+  }, []);
 
   const toggleDemo = () => {
     setShowDemo(prev => !prev);
@@ -84,22 +151,81 @@ export default function AppItem({ app, buttonFontSize, iconSize }: AppItemProps)
     });
   }, [app.imageUrl, app.title]);
 
-  return (
-    <div className={styles.appItem}>
-      {app.imageUrl && (
+  useEffect(() => {
+    if (!compact || !expanded) {
+      return;
+    }
+
+    const triggerElement = appToggleRef.current;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    const focusFrame = window.requestAnimationFrame(() => closeButtonRef.current?.focus());
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        closeModal();
+        return;
+      }
+
+      if (event.key !== 'Tab' || !modalRef.current) {
+        return;
+      }
+
+      const focusableElements = Array.from(
+        modalRef.current.querySelectorAll<HTMLElement>(
+          'a[href], button:not([disabled]), iframe, [tabindex]:not([tabindex="-1"])'
+        )
+      );
+
+      if (focusableElements.length === 0) {
+        event.preventDefault();
+        modalRef.current.focus();
+        return;
+      }
+
+      const firstElement = focusableElements[0];
+      const lastElement = focusableElements[focusableElements.length - 1];
+
+      if (event.shiftKey && document.activeElement === firstElement) {
+        event.preventDefault();
+        lastElement.focus();
+      } else if (!event.shiftKey && document.activeElement === lastElement) {
+        event.preventDefault();
+        firstElement.focus();
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      window.cancelAnimationFrame(focusFrame);
+      document.body.style.overflow = previousOverflow;
+      document.removeEventListener('keydown', handleKeyDown);
+      triggerElement?.focus();
+    };
+  }, [closeModal, compact, expanded]);
+
+  const appIcon = app.imageUrl ? (
         <ImageWithLoader
           src={app.imageUrl}
           alt={`${app.title} icon`}
-          className={styles.appImage}
+          className={`${styles.appImage} ${compact ? styles.compactAppImage : ''}`}
           loadingComponent={
-            <div className={styles.appImage} style={{ background: 'rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <div className={`${styles.appImage} ${compact ? styles.compactAppImage : ''}`} style={{ background: 'rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <span style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.5)' }}>Loading...</span>
             </div>
           }
         />
-      )}
-      <div className={styles.appContent}>
-        <h3 className={styles.appTitle}>{app.title}</h3>
+      ) : compact ? (
+        <span className={styles.compactAppFallback} aria-hidden="true">
+          {app.title.charAt(0).toUpperCase()}
+        </span>
+      ) : null;
+
+  const appDetails = (
+      <div className={`${styles.appContent} ${compact ? styles.compactAppContent : ''}`}>
+        <h3 id={modalTitleId} className={styles.appTitle}>{app.title}</h3>
         {app.description && (
           <p className={styles.appDescription}>{app.description}</p>
         )}
@@ -185,7 +311,73 @@ export default function AppItem({ app, buttonFontSize, iconSize }: AppItemProps)
           </div>
         )}
       </div>
+  );
+
+  if (compact) {
+    return (
+      <div className={`${styles.appItem} ${styles.compactAppItem}`}>
+        <button
+          ref={appToggleRef}
+          type="button"
+          className={styles.compactAppToggle}
+          onClick={openModal}
+          aria-expanded={expanded}
+          aria-haspopup="dialog"
+          aria-label={app.title}
+          title={app.title}
+        >
+          {appIcon}
+        </button>
+        {expanded && typeof document !== 'undefined' && createPortal(
+          <div
+            className={styles.appModalBackdrop}
+            data-closing={isModalClosing}
+            onClick={(event) => {
+              if (event.target === event.currentTarget) {
+                closeModal();
+              }
+            }}
+            onPointerDown={(event) => event.stopPropagation()}
+            onPointerMove={(event) => event.stopPropagation()}
+            onPointerUp={(event) => event.stopPropagation()}
+          >
+            <div
+              ref={modalRef}
+              className={styles.appModal}
+              data-closing={isModalClosing}
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby={modalTitleId}
+              tabIndex={-1}
+              style={{
+                '--app-modal-origin-x': `${modalOrigin.x}px`,
+                '--app-modal-origin-y': `${modalOrigin.y}px`,
+              } as CSSProperties}
+            >
+              <button
+                ref={closeButtonRef}
+                type="button"
+                className={styles.appModalClose}
+                onClick={closeModal}
+                aria-label={`${closeLabel}: ${app.title}`}
+                title={closeLabel}
+              >
+                <span aria-hidden="true">&times;</span>
+              </button>
+              <div className={styles.appModalIcon}>{appIcon}</div>
+              {appDetails}
+            </div>
+          </div>,
+          document.body
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <div className={styles.appItem}>
+      {appIcon}
+      {appDetails}
     </div>
   );
 }
-

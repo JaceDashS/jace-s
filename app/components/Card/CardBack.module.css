@@ -162,3 +162,19 @@
   background-color: rgb(126 34 206);
 }
 
+.cardContainer.compactCard {
+  padding: 1.25rem;
+  border-radius: 1.25rem;
+  box-shadow: none;
+  transform: none;
+}
+
+.compactCard .sectionTitle {
+  margin-bottom: 1rem;
+  font-size: var(--mobile-font-section-title, 2rem);
+  line-height: 1.15;
+}
+
+.compactCard .backButtonContainer {
+  padding-top: 0.75rem;
+}

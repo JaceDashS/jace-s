@@ -1,0 +1,519 @@
+.mobileExperience {
+  display: none;
+}
+
+@media (max-width: 600px) {
+  .mobileExperience {
+    --mobile-font-2xs: clamp(0.5625rem, min(2.6vw, 1.7vh), 0.625rem);
+    --mobile-font-xs: clamp(0.6875rem, min(3.1vw, 1.9vh), 0.75rem);
+    --mobile-font-sm: clamp(0.75rem, min(3.6vw, 2.2vh), 0.875rem);
+    --mobile-font-md: clamp(0.875rem, min(4vw, 2.5vh), 1rem);
+    --mobile-font-page-title: clamp(1.35rem, min(7vw, 4.3vh), 1.75rem);
+    --mobile-font-section-title: clamp(1.75rem, min(8vw, 5vh), 2.25rem);
+    --mobile-font-composer-title: clamp(1.15rem, min(5.5vw, 3.4vh), 1.4rem);
+    width: 100%;
+    height: 100dvh;
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr) auto;
+    background:
+      radial-gradient(circle at 75% 10%, rgba(147, 51, 234, 0.2), transparent 38%),
+      rgb(15 23 42);
+    color: white;
+    overflow: hidden;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 500ms ease;
+  }
+
+  .mobileExperience[data-visible='true'] {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .header {
+    min-height: 4.25rem;
+    padding: max(1rem, env(safe-area-inset-top)) 1.25rem 0.75rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-family: ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
+  }
+
+  .eyebrow {
+    color: rgb(196 181 253);
+    font-family: ui-sans-serif, system-ui, sans-serif;
+    font-size: var(--mobile-font-xs);
+    font-weight: 700;
+    letter-spacing: 0.18em;
+  }
+
+  .languageSelect {
+    min-height: 2.25rem;
+    padding: 0.45rem 0.65rem;
+    border: 1px solid rgba(196, 181, 253, 0.35);
+    border-radius: 0.65rem;
+    background: rgba(30, 41, 59, 0.9);
+    color: white;
+    color-scheme: dark;
+    font-family: ui-sans-serif, system-ui, sans-serif;
+    font-size: var(--mobile-font-sm);
+    font-weight: 600;
+  }
+
+  .languageSelect:focus-visible {
+    outline: 2px solid rgb(196 181 253);
+    outline-offset: 2px;
+  }
+
+  .flipStage {
+    width: 100%;
+    min-height: 0;
+    position: relative;
+    isolation: isolate;
+    perspective: 1200px;
+    touch-action: pan-y;
+    outline: none;
+  }
+
+  .flipStage:focus-visible {
+    outline: 2px solid rgb(196 181 253);
+    outline-offset: -0.25rem;
+  }
+
+  .flipStage[data-coach-visible='true']::after {
+    content: '';
+    position: absolute;
+    inset: 0.5rem 1rem 0.75rem;
+    z-index: 10;
+    border-radius: 1.25rem;
+    background: rgba(2, 6, 23, 0.36);
+    pointer-events: none;
+    animation: swipeCoachScrim 3.2s ease both;
+  }
+
+  .swipeCoachMark {
+    width: clamp(12.5rem, 62vw, 14.5rem);
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    z-index: 20;
+    padding: 0.85rem 1rem 1rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.25rem;
+    border: 1px solid rgba(216, 180, 254, 0.32);
+    border-radius: 1rem;
+    background: rgba(15, 23, 42, 0.88);
+    box-shadow:
+      0 18px 42px rgba(0, 0, 0, 0.38),
+      inset 0 1px 0 rgba(255, 255, 255, 0.08);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    box-sizing: border-box;
+    pointer-events: none;
+    transform: translate(-50%, -50%);
+    animation: swipeCoachFade 3.2s ease both;
+  }
+
+  .swipeCoachGesture {
+    width: 100%;
+    height: 3.25rem;
+    position: relative;
+  }
+
+  .swipeCoachTrack {
+    width: 8.75rem;
+    height: 1.5rem;
+    position: absolute;
+    top: 0;
+    left: 50%;
+    color: rgba(216, 180, 254, 0.72);
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    transform: translateX(-50%);
+    transform-origin: center;
+    animation: swipeCoachTrackPulse 1.35s ease-in-out infinite;
+  }
+
+  .swipeCoachPointer {
+    width: 2.6rem;
+    height: 2.6rem;
+    position: absolute;
+    top: 0.1rem;
+    left: 50%;
+    margin-left: -1.3rem;
+    transform-origin: 50% 85%;
+    animation: swipeCoachPointer 1.6s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+  }
+
+  .swipeCoachContact {
+    width: 0.9rem;
+    height: 0.9rem;
+    position: absolute;
+    top: -0.08rem;
+    left: 33%;
+    z-index: 1;
+    border: 2px solid rgba(233, 213, 255, 0.92);
+    border-radius: 50%;
+    box-shadow: 0 0 0 0.25rem rgba(168, 85, 247, 0.15);
+    transform: translateX(-50%);
+    animation: swipeCoachContactPulse 1.6s ease-in-out infinite;
+  }
+
+  .swipeCoachFinger {
+    width: 100%;
+    height: 100%;
+    color: rgb(245 243 255);
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.75;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    filter:
+      drop-shadow(0 4px 6px rgba(0, 0, 0, 0.38))
+      drop-shadow(0 0 7px rgba(168, 85, 247, 0.35));
+  }
+
+  .swipeCoachTitle {
+    color: white;
+    font-family: ui-sans-serif, system-ui, sans-serif;
+    font-size: var(--mobile-font-md);
+    font-weight: 750;
+    line-height: 1.25;
+    text-align: center;
+  }
+
+  .swipeCoachDescription {
+    max-width: 12.5rem;
+    color: rgba(226, 232, 240, 0.72);
+    font-family: ui-sans-serif, system-ui, sans-serif;
+    font-size: var(--mobile-font-xs);
+    line-height: 1.4;
+    text-align: center;
+  }
+
+  .cardLayer {
+    position: absolute;
+    inset: 0;
+    box-sizing: border-box;
+    z-index: 1;
+    transform-style: preserve-3d;
+    transform-origin: center center;
+    transform: rotateY(var(--card-rotation, 0deg));
+  }
+
+  .coachHint {
+    animation: swipeCoachCardHint 1.6s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+  }
+
+  .cardFace {
+    position: absolute;
+    inset: 0;
+    padding: 0.5rem 1rem 0.75rem;
+    display: flex;
+    box-sizing: border-box;
+    transform-origin: center center;
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+  }
+
+  .frontCardFace {
+    transform: rotateY(0deg);
+  }
+
+  .backCardFace {
+    transform: rotateY(180deg);
+  }
+
+  .visibleCardFace {
+    visibility: visible;
+  }
+
+  .frontCardFace.visibleCardFace {
+    pointer-events: auto;
+  }
+
+  .backCardFace.visibleCardFace,
+  .inactiveCardFace {
+    pointer-events: none;
+  }
+
+  .inactiveCardFace {
+    visibility: hidden;
+  }
+
+  .isFlipping,
+  .isReturning {
+    pointer-events: none;
+  }
+
+  .isFlipping {
+    transition: transform var(--flip-duration, 460ms) linear;
+  }
+
+  .isDragging .cardFace,
+  .isDragging .cardFace *,
+  .isFlipping .cardFace,
+  .isFlipping .cardFace * {
+    transition: none !important;
+  }
+
+  .isReturning {
+    transition: transform var(--flip-duration, 230ms) linear;
+  }
+
+  .cardShell {
+    --mobile-card-accent: 168 85 247;
+    --mobile-card-glow-opacity: 0.18;
+    width: 100%;
+    min-height: 0;
+    position: relative;
+    border: 1px solid rgb(var(--mobile-card-accent) / 0.32);
+    border-radius: 1.25rem;
+    box-shadow:
+      0 24px 60px rgba(0, 0, 0, 0.34),
+      0 0 28px rgb(var(--mobile-card-accent) / 0.08);
+    overflow: hidden;
+    box-sizing: border-box;
+  }
+
+  .homeCard {
+    --mobile-card-accent: 168 85 247;
+  }
+
+  .appsCard {
+    --mobile-card-accent: 34 211 238;
+  }
+
+  .commentCard {
+    --mobile-card-accent: 244 114 182;
+    padding: clamp(0.65rem, min(4vw, 2.2vh), 1.1rem);
+    background:
+      radial-gradient(
+        circle at 100% 0%,
+        rgb(var(--mobile-card-accent) / var(--mobile-card-glow-opacity)),
+        transparent 44%
+      ),
+      rgb(30 41 55);
+  }
+
+  .certificateCard {
+    --mobile-card-accent: 196 181 253;
+    background: rgb(88 28 135);
+  }
+
+  .certificateDetailCard {
+    --mobile-card-accent: 196 181 253;
+    background: rgb(17 24 39);
+  }
+
+  .certificateDetailContent {
+    width: 100%;
+    height: 100%;
+    min-height: 0;
+    padding: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    box-sizing: border-box;
+  }
+
+  .certificateDetailTitle {
+    margin: 0;
+    color: white;
+    font-family: ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
+    font-size: var(--mobile-font-composer-title);
+    font-weight: 700;
+    line-height: 1.25;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .certificateDetailDocument {
+    min-height: 0;
+    flex: 1 1 0%;
+    position: relative;
+    overflow: hidden;
+    border: 1px solid rgba(196, 181, 253, 0.2);
+    border-radius: 0.75rem;
+    background: rgb(15 23 42);
+  }
+
+  .certificateDetailActions {
+    display: flex;
+    justify-content: flex-end;
+    flex-shrink: 0;
+  }
+
+  .certificateDetailBackButton {
+    min-height: 2.5rem;
+    padding: 0.55rem 1rem;
+    border: 1px solid rgba(196, 181, 253, 0.42);
+    border-radius: 0.65rem;
+    background: rgb(126 34 206);
+    color: white;
+    font-size: var(--mobile-font-sm);
+    font-weight: 650;
+  }
+
+  .certificateDetailBackButton:focus-visible {
+    outline: 2px solid rgb(216 180 254);
+    outline-offset: 2px;
+  }
+
+  .pagination {
+    min-height: 2.75rem;
+    padding: 0.25rem 0 max(0.65rem, env(safe-area-inset-bottom));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    position: relative;
+    box-sizing: border-box;
+  }
+
+  .dot,
+  .activeDot {
+    height: 0.45rem;
+    padding: 0;
+    border: 0;
+    border-radius: 999px;
+    background: rgb(71 85 105);
+    transition: width 180ms ease, background-color 180ms ease, opacity 160ms ease;
+  }
+
+  .dot:disabled,
+  .activeDot:disabled {
+    cursor: wait;
+  }
+
+  .dot {
+    width: 0.45rem;
+  }
+
+  .activeDot {
+    width: 1.75rem;
+    background: rgb(var(--mobile-active-accent, 168 85 247));
+    box-shadow: 0 0 12px rgb(var(--mobile-active-accent, 168 85 247) / 0.45);
+  }
+
+  @keyframes swipeCoachFade {
+    0%, 5% {
+      opacity: 0;
+    }
+
+    14%, 84% {
+      opacity: 1;
+    }
+
+    100% {
+      opacity: 0;
+    }
+  }
+
+  @keyframes swipeCoachScrim {
+    0%, 5% {
+      opacity: 0;
+    }
+
+    14%, 84% {
+      opacity: 1;
+    }
+
+    100% {
+      opacity: 0;
+    }
+  }
+
+  @keyframes swipeCoachPointer {
+    0%, 8% {
+      opacity: 0;
+      transform: translate3d(2.8rem, 0.2rem, 0) rotate(-8deg) scale(0.94);
+    }
+
+    20% {
+      opacity: 1;
+    }
+
+    72% {
+      opacity: 1;
+      transform: translate3d(-2.8rem, 0, 0) rotate(-16deg) scale(1);
+    }
+
+    88%, 100% {
+      opacity: 0;
+      transform: translate3d(-2.8rem, 0, 0) rotate(-16deg) scale(1);
+    }
+  }
+
+  @keyframes swipeCoachContactPulse {
+    0%, 12%, 100% {
+      opacity: 0;
+      transform: translateX(-50%) scale(0.7);
+    }
+
+    25%, 70% {
+      opacity: 1;
+      transform: translateX(-50%) scale(1);
+    }
+
+    82% {
+      opacity: 0;
+      transform: translateX(-50%) scale(1.35);
+    }
+  }
+
+  @keyframes swipeCoachCardHint {
+    0%, 12%, 100% {
+      transform: rotateY(0deg);
+    }
+
+    68% {
+      transform: rotateY(-7deg);
+    }
+
+    84% {
+      transform: rotateY(0deg);
+    }
+  }
+
+  @keyframes swipeCoachTrackPulse {
+    0%, 100% {
+      opacity: 0.45;
+    }
+
+    50% {
+      opacity: 0.9;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .isFlipping,
+    .isReturning {
+      transition-duration: 1ms;
+    }
+
+    .swipeCoachMark,
+    .swipeCoachPointer,
+    .swipeCoachTrack,
+    .swipeCoachContact,
+    .coachHint,
+    .flipStage[data-coach-visible='true']::after {
+      animation: none;
+    }
+
+    .swipeCoachPointer {
+      opacity: 1;
+      transform: translate3d(-2rem, 0, 0) rotate(-12deg);
+    }
+
+    .swipeCoachContact {
+      opacity: 1;
+    }
+  }
+}

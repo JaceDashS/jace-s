@@ -1,12 +1,14 @@
 /**
  * 카드 앞면 컴포넌트
  */
-import { useState, useEffect, useRef, useMemo } from 'react';
+import { useState, useEffect, useLayoutEffect, useRef, useMemo } from 'react';
 import type { MouseEvent } from 'react';
 import { PROJECTS_PER_PAGE } from '../../constants/gridConstants';
 import type { Language } from '../../types/mainContent';
 import type { App } from '../../types/app';
+import { fetchAssetsManifest, getRandomHomePhotos } from '../../utils/assetUtils';
 import { BUTTON_MAX_FACTOR, CARD_WIDTH as BUTTON_CARD_WIDTH, BUTTON_PADDING, BUTTON_FONT, ICON_SIZE } from '../../constants/buttonConstants';
+import ImageWithLoader from '../ImageWithLoader';
 import AppItem from './AppItem';
 import styles from './CardFront.module.css';
 
@@ -19,17 +21,40 @@ const RESPONSIVE_CONFIG = {
   },
   // Greeting 폰트 크기
   GREETING_FONT: {
+    FIT_MIN: 0.75,
+    COMPACT_MIN: 1,
+    COMPACT_MAX: 2,
     MIN: 1.5,  // rem
     MAX: 4.5,  // rem
   },
   // Description 폰트 크기
   DESCRIPTION_FONT: {
+    FIT_MIN: 0.5,
+    COMPACT_MIN: 0.625,
+    COMPACT_MAX: 1.125,
     MIN: 1,     // rem
     MAX: 2, // rem
   },
   // 버튼 사이즈 배율은 buttonConstants.ts의 BUTTON_MAX_FACTOR를 사용합니다
   // 큰 버튼 패딩은 buttonConstants.ts의 BUTTON_PADDING을 사용합니다
   // 작은 버튼 패딩 (MAX 값에 BUTTON_MAX_FACTOR를 곱한 값이 최종 최대값)
+  CONTENT_FIT: {
+    ACTION_GAP_PX: 16,
+    CONTENT_GAP_PX: 10,
+    SEARCH_STEPS: 10,
+    TITLE_OFFSET_MAX_PX: 48,
+    PHOTO_GAP_PX: 16,
+    PHOTO_MIN_HEIGHT_PX: 96,
+    PHOTO_MAX_HEIGHT_PX: 208,
+    PHOTO_REMAINING_SPACE_PX: 24,
+    PHOTO_TWO_COUNT_HEIGHT_PX: 132,
+    PHOTO_THREE_COUNT_HEIGHT_PX: 184,
+  },
+  COMPACT_BUTTON_SCALE: {
+    MIN: 0.62,
+    WIDTH_REFERENCE_PX: 400,
+    HEIGHT_REFERENCE_PX: 520,
+  },
   SMALL_BUTTON_PADDING: {
     MIN_PX: 4,
     MAX_PX: 8,
@@ -49,6 +74,17 @@ const PADDING_CONFIG = {
   BOTTOM_PADDING_MIN: 32, // 2rem = 32px
 } as const;
 
+const cardFrontCopy: Record<Language, {
+  appsTitle: string;
+  emailLabel: string;
+  emailCopied: string;
+}> = {
+  en: { appsTitle: 'Apps', emailLabel: 'Email', emailCopied: 'Email copied to clipboard!' },
+  ko: { appsTitle: '앱', emailLabel: '이메일', emailCopied: '이메일 주소를 복사했습니다!' },
+  ja: { appsTitle: 'アプリ', emailLabel: 'メール', emailCopied: 'メールアドレスをコピーしました！' },
+  zh: { appsTitle: '应用', emailLabel: '邮箱', emailCopied: '邮箱地址已复制！' },
+};
+
 interface CardFrontProps {
   greetingFade: number;
   appsFade: number;
@@ -66,6 +102,8 @@ interface CardFrontProps {
   greetingText: string;
   nameSuffix: string;
   disablePointerEvents?: boolean;
+  compactTypography?: boolean;
+  layoutActive?: boolean;
 }
 
 export default function CardFront({
@@ -85,7 +123,16 @@ export default function CardFront({
   greetingText,
   nameSuffix,
   disablePointerEvents = false,
+  compactTypography = false,
+  layoutActive = true,
 }: CardFrontProps) {
+  const uiCopy = cardFrontCopy[language];
+  const closeAppModalText: Record<Language, string> = {
+    en: 'Close',
+    ko: '닫기',
+    ja: '閉じる',
+    zh: '关闭',
+  };
   // 언어별 캐주얼 폰트 설정
   const getFontFamily = (lang: Language): string => {
     switch (lang) {
@@ -105,7 +152,10 @@ export default function CardFront({
   const containerRef = useRef<HTMLDivElement>(null);
   const fadeContainerRef = useRef<HTMLDivElement>(null);
   const descriptionRef = useRef<HTMLParagraphElement>(null);
+  const buttonGroupRef = useRef<HTMLDivElement>(null);
+  const homePhotosLoadStartedRef = useRef(false);
   const isHomeLinksActive = scrollProgress === 0;
+  const isCompactHome = compactTypography && scrollProgress === 0;
   
   // 언어별 페이지네이션 텍스트
   const paginationText = {
@@ -126,8 +176,12 @@ export default function CardFront({
       next: '下一页',
     },
   };
-  const [fontSize, setFontSize] = useState(`${RESPONSIVE_CONFIG.GREETING_FONT.MAX}rem`);
-  const [descriptionFontSize, setDescriptionFontSize] = useState(`${RESPONSIVE_CONFIG.DESCRIPTION_FONT.MAX}rem`);
+  const [fontSize, setFontSize] = useState(
+    `${compactTypography ? RESPONSIVE_CONFIG.GREETING_FONT.COMPACT_MAX : RESPONSIVE_CONFIG.GREETING_FONT.MAX}rem`
+  );
+  const [descriptionFontSize, setDescriptionFontSize] = useState(
+    `${compactTypography ? RESPONSIVE_CONFIG.DESCRIPTION_FONT.COMPACT_MAX : RESPONSIVE_CONFIG.DESCRIPTION_FONT.MAX}rem`
+  );
   // BUTTON_MAX_FACTOR를 적용한 초기 최대값 계산
   const initialButtonMaxPx = BUTTON_PADDING.MAX_PX * BUTTON_MAX_FACTOR;
   const initialButtonMaxPy = BUTTON_PADDING.MAX_PY * BUTTON_MAX_FACTOR;
@@ -147,6 +201,9 @@ export default function CardFront({
   const [buttonFontSize, setButtonFontSize] = useState(`${initialButtonFontMax}rem`);
   const [iconSize, setIconSize] = useState(`${initialIconSizeMax}rem`);
   const [emailCopied, setEmailCopied] = useState(false);
+  const [expandedAppId, setExpandedAppId] = useState<number | null>(null);
+  const [homePhotos, setHomePhotos] = useState<string[]>([]);
+  const [homePhotoLayout, setHomePhotoLayout] = useState({ height: 0, count: 0 });
   
   // 런타임 환경 변수 (서버 사이드에서는 process.env, 클라이언트 사이드에서는 /api/config)
   // 초기값은 빌드 타임 값 (서버/클라이언트 모두 동일하게 설정하여 Hydration 오류 방지)
@@ -251,12 +308,42 @@ export default function CardFront({
     fetchConfig();
   }, []);
 
-  // 카드 너비에 따라 폰트 크기 및 버튼 크기 조정
   useEffect(() => {
+    if (!isCompactHome || homePhotoLayout.count === 0 || homePhotosLoadStartedRef.current) {
+      return;
+    }
+
+    let cancelled = false;
+    homePhotosLoadStartedRef.current = true;
+
+    const loadHomePhotos = async () => {
+      const manifest = await fetchAssetsManifest();
+      if (!manifest || cancelled) {
+        return;
+      }
+
+      const selectedPhotos = getRandomHomePhotos(manifest, 1, 2);
+      const selectedPhotoUrls = [...selectedPhotos.large, ...selectedPhotos.small];
+
+      if (!cancelled) {
+        setHomePhotos(selectedPhotoUrls);
+      }
+    };
+
+    loadHomePhotos();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [homePhotoLayout.count, isCompactHome]);
+
+  // 카드 너비에 따라 폰트 크기 및 버튼 크기 조정
+  useLayoutEffect(() => {
     const updateSizes = () => {
       if (!containerRef.current) return;
       
       const containerWidth = containerRef.current.offsetWidth;
+      const containerHeight = containerRef.current.offsetHeight;
       const { MIN: minWidth, MAX: maxWidth } = RESPONSIVE_CONFIG.CARD_WIDTH;
       const { MIN: buttonMinWidth, MAX: buttonMaxWidth } = BUTTON_CARD_WIDTH;
       
@@ -267,22 +354,179 @@ export default function CardFront({
         const ratio = (width - minWidth) / (maxWidth - minWidth);
         return min + (max - min) * ratio;
       };
-      
-      // Greeting 폰트 크기
-      const greetingSizeRem = interpolate(
+
+      let greetingSizeRem = interpolate(
         RESPONSIVE_CONFIG.GREETING_FONT.MIN,
         RESPONSIVE_CONFIG.GREETING_FONT.MAX,
         containerWidth
       );
-      const greetingSize = greetingSizeRem + 'rem';
-      
-      // Description 폰트 크기
-      const descSizeRem = interpolate(
+      let descSizeRem = interpolate(
         RESPONSIVE_CONFIG.DESCRIPTION_FONT.MIN,
         RESPONSIVE_CONFIG.DESCRIPTION_FONT.MAX,
         containerWidth
       );
-      const descSize = descSizeRem + 'rem';
+
+      if (compactTypography) {
+        const fadeContainer = fadeContainerRef.current;
+        const greetingElement = fadeContainer?.querySelector<HTMLElement>(`.${styles.greetingText}`);
+        const descriptionElement = descriptionRef.current;
+        const descriptionContainer = descriptionElement?.parentElement;
+        const buttonGroup = buttonGroupRef.current;
+
+        greetingSizeRem = RESPONSIVE_CONFIG.GREETING_FONT.COMPACT_MIN;
+        descSizeRem = RESPONSIVE_CONFIG.DESCRIPTION_FONT.COMPACT_MIN;
+
+        if (fadeContainer && greetingElement) {
+          const fadeRect = fadeContainer.getBoundingClientRect();
+          const buttonRect = buttonGroup?.getBoundingClientRect();
+          const actionReserve = buttonRect
+            ? Math.max(
+                0,
+                fadeRect.bottom - buttonRect.top + RESPONSIVE_CONFIG.CONTENT_FIT.ACTION_GAP_PX
+              )
+            : 0;
+
+          fadeContainer.style.setProperty('--home-actions-reserve', `${actionReserve}px`);
+          fadeContainer.style.setProperty('--home-title-offset', '0px');
+
+          const previousGreetingSize = greetingElement.style.fontSize;
+          const previousDescriptionSize = descriptionElement?.style.fontSize ?? '';
+          const getPreferredCandidateSizes = (ratio: number) => ({
+            greeting:
+              RESPONSIVE_CONFIG.GREETING_FONT.COMPACT_MIN +
+              (RESPONSIVE_CONFIG.GREETING_FONT.COMPACT_MAX -
+                RESPONSIVE_CONFIG.GREETING_FONT.COMPACT_MIN) * ratio,
+            description:
+              RESPONSIVE_CONFIG.DESCRIPTION_FONT.COMPACT_MIN +
+              (RESPONSIVE_CONFIG.DESCRIPTION_FONT.COMPACT_MAX -
+                RESPONSIVE_CONFIG.DESCRIPTION_FONT.COMPACT_MIN) * ratio,
+          });
+          const getEmergencyCandidateSizes = (ratio: number) => ({
+            greeting:
+              RESPONSIVE_CONFIG.GREETING_FONT.FIT_MIN +
+              (RESPONSIVE_CONFIG.GREETING_FONT.COMPACT_MIN -
+                RESPONSIVE_CONFIG.GREETING_FONT.FIT_MIN) * ratio,
+            description:
+              RESPONSIVE_CONFIG.DESCRIPTION_FONT.FIT_MIN +
+              (RESPONSIVE_CONFIG.DESCRIPTION_FONT.COMPACT_MIN -
+                RESPONSIVE_CONFIG.DESCRIPTION_FONT.FIT_MIN) * ratio,
+          });
+          const candidateFits = (candidate: { greeting: number; description: number }) => {
+            greetingElement.style.fontSize = `${candidate.greeting}rem`;
+            if (descriptionElement) {
+              descriptionElement.style.fontSize = `${candidate.description}rem`;
+            }
+
+            const greetingFits =
+              greetingElement.getBoundingClientRect().bottom <=
+              fadeContainer.getBoundingClientRect().bottom - actionReserve + 1;
+            const descriptionFits =
+              !descriptionElement ||
+              !descriptionContainer ||
+              descriptionElement.scrollHeight <= descriptionContainer.clientHeight + 1;
+
+            return greetingFits && descriptionFits;
+          };
+
+          const findLargestFittingCandidate = (
+            getCandidateSizes: (ratio: number) => { greeting: number; description: number }
+          ) => {
+            const smallestCandidate = getCandidateSizes(0);
+            if (!candidateFits(smallestCandidate)) {
+              return smallestCandidate;
+            }
+
+            const largestCandidate = getCandidateSizes(1);
+            if (candidateFits(largestCandidate)) {
+              return largestCandidate;
+            }
+
+            let lowerRatio = 0;
+            let upperRatio = 1;
+
+            for (let step = 0; step < RESPONSIVE_CONFIG.CONTENT_FIT.SEARCH_STEPS; step += 1) {
+              const candidateRatio = (lowerRatio + upperRatio) / 2;
+              if (candidateFits(getCandidateSizes(candidateRatio))) {
+                lowerRatio = candidateRatio;
+              } else {
+                upperRatio = candidateRatio;
+              }
+            }
+
+            return getCandidateSizes(lowerRatio);
+          };
+
+          const preferredMinimum = getPreferredCandidateSizes(0);
+          const fittedSizes = candidateFits(preferredMinimum)
+            ? findLargestFittingCandidate(getPreferredCandidateSizes)
+            : findLargestFittingCandidate(getEmergencyCandidateSizes);
+          greetingSizeRem = fittedSizes.greeting;
+          descSizeRem = fittedSizes.description;
+          candidateFits(fittedSizes);
+
+          const contentGap = descriptionElement
+            ? RESPONSIVE_CONFIG.CONTENT_FIT.CONTENT_GAP_PX
+            : 0;
+          const safeContentHeight = fadeContainer.clientHeight - actionReserve;
+          const naturalContentHeight =
+            greetingElement.getBoundingClientRect().height +
+            (descriptionElement?.scrollHeight ?? 0) +
+            contentGap;
+          const emptyContentHeight = Math.max(0, safeContentHeight - naturalContentHeight);
+          const availablePhotoHeight = Math.floor(
+            emptyContentHeight -
+            RESPONSIVE_CONFIG.CONTENT_FIT.PHOTO_GAP_PX -
+            RESPONSIVE_CONFIG.CONTENT_FIT.PHOTO_REMAINING_SPACE_PX
+          );
+          const nextPhotoHeight = isCompactHome &&
+            availablePhotoHeight >= RESPONSIVE_CONFIG.CONTENT_FIT.PHOTO_MIN_HEIGHT_PX
+            ? Math.min(
+                availablePhotoHeight,
+                RESPONSIVE_CONFIG.CONTENT_FIT.PHOTO_MAX_HEIGHT_PX
+              )
+            : 0;
+          const nextPhotoCount = nextPhotoHeight >=
+            RESPONSIVE_CONFIG.CONTENT_FIT.PHOTO_THREE_COUNT_HEIGHT_PX
+            ? 3
+            : nextPhotoHeight >= RESPONSIVE_CONFIG.CONTENT_FIT.PHOTO_TWO_COUNT_HEIGHT_PX
+              ? 2
+              : nextPhotoHeight > 0
+                ? 1
+                : 0;
+
+          setHomePhotoLayout((currentLayout) => {
+            if (
+              currentLayout.height === nextPhotoHeight &&
+              currentLayout.count === nextPhotoCount
+            ) {
+              return currentLayout;
+            }
+
+            return { height: nextPhotoHeight, count: nextPhotoCount };
+          });
+
+          const photoReserve = nextPhotoHeight > 0
+            ? nextPhotoHeight + RESPONSIVE_CONFIG.CONTENT_FIT.PHOTO_GAP_PX
+            : 0;
+          const availableTitleOffset = Math.max(
+            0,
+            (safeContentHeight - naturalContentHeight - photoReserve) / 2
+          );
+          const titleOffset = Math.min(
+            availableTitleOffset,
+            RESPONSIVE_CONFIG.CONTENT_FIT.TITLE_OFFSET_MAX_PX
+          );
+          fadeContainer.style.setProperty('--home-title-offset', `${titleOffset}px`);
+
+          greetingElement.style.fontSize = previousGreetingSize;
+          if (descriptionElement) {
+            descriptionElement.style.fontSize = previousDescriptionSize;
+          }
+        }
+      }
+
+      const greetingSize = `${greetingSizeRem}rem`;
+      const descSize = `${descSizeRem}rem`;
       
       // BUTTON_MAX_FACTOR를 적용한 최대값 계산
       const buttonMaxPx = BUTTON_PADDING.MAX_PX * BUTTON_MAX_FACTOR;
@@ -299,37 +543,47 @@ export default function CardFront({
         const ratio = (width - buttonMinWidth) / (buttonMaxWidth - buttonMinWidth);
         return min + (max - min) * ratio;
       };
+      const compactButtonScale = compactTypography
+        ? Math.max(
+            RESPONSIVE_CONFIG.COMPACT_BUTTON_SCALE.MIN,
+            Math.min(
+              1,
+              containerWidth / RESPONSIVE_CONFIG.COMPACT_BUTTON_SCALE.WIDTH_REFERENCE_PX,
+              containerHeight / RESPONSIVE_CONFIG.COMPACT_BUTTON_SCALE.HEIGHT_REFERENCE_PX
+            )
+          )
+        : 1;
       
       // 큰 버튼 패딩
       const buttonPx = buttonInterpolate(
         BUTTON_PADDING.MIN_PX,
         buttonMaxPx,
         containerWidth
-      );
+      ) * compactButtonScale;
       const buttonPy = buttonInterpolate(
         BUTTON_PADDING.MIN_PY,
         buttonMaxPy,
         containerWidth
-      );
+      ) * compactButtonScale;
       
       // 작은 버튼 패딩
       const smallPx = buttonInterpolate(
         RESPONSIVE_CONFIG.SMALL_BUTTON_PADDING.MIN_PX,
         smallMaxPx,
         containerWidth
-      );
+      ) * compactButtonScale;
       const smallPy = buttonInterpolate(
         RESPONSIVE_CONFIG.SMALL_BUTTON_PADDING.MIN_PY,
         smallMaxPy,
         containerWidth
-      );
+      ) * compactButtonScale;
       
       // 버튼 폰트 크기
       const buttonFontSizeRem = buttonInterpolate(
         BUTTON_FONT.MIN,
         buttonFontMax,
         containerWidth
-      );
+      ) * compactButtonScale;
       const newButtonFontSize = buttonFontSizeRem + 'rem';
       
       // 아이콘 크기
@@ -337,7 +591,7 @@ export default function CardFront({
         ICON_SIZE.MIN,
         iconSizeMax,
         containerWidth
-      );
+      ) * compactButtonScale;
       const newIconSize = iconSizeRem + 'rem';
       
       setFontSize(greetingSize);
@@ -348,26 +602,50 @@ export default function CardFront({
       setIconSize(newIconSize);
     };
 
-    const timeoutId = setTimeout(() => {
-      updateSizes();
-    }, 100);
+    updateSizes();
     
     const resizeObserver = new ResizeObserver(() => {
       updateSizes();
     });
+    let refreshFrameId: number | null = null;
+    const refreshRestoredLayout = () => {
+      if (refreshFrameId !== null) {
+        window.cancelAnimationFrame(refreshFrameId);
+      }
+      refreshFrameId = window.requestAnimationFrame(() => {
+        refreshFrameId = null;
+        updateSizes();
+      });
+    };
     
     if (containerRef.current) {
       resizeObserver.observe(containerRef.current);
     }
+    if (fadeContainerRef.current) {
+      resizeObserver.observe(fadeContainerRef.current);
+    }
+    if (buttonGroupRef.current) {
+      resizeObserver.observe(buttonGroupRef.current);
+    }
+    window.addEventListener('pageshow', refreshRestoredLayout);
+    window.addEventListener('orientationchange', refreshRestoredLayout);
+    window.visualViewport?.addEventListener('resize', refreshRestoredLayout);
 
     return () => {
-      clearTimeout(timeoutId);
+      if (refreshFrameId !== null) {
+        window.cancelAnimationFrame(refreshFrameId);
+      }
       resizeObserver.disconnect();
+      window.removeEventListener('pageshow', refreshRestoredLayout);
+      window.removeEventListener('orientationchange', refreshRestoredLayout);
+      window.visualViewport?.removeEventListener('resize', refreshRestoredLayout);
     };
-  }, []);
+  }, [compactTypography, greetingText, isCompactHome, language, layoutActive, nameSuffix, profileDescription, profileName]);
 
   // 패딩 동적 계산 (상단/하단 패딩 조정)
   useEffect(() => {
+    if (compactTypography) return;
+
     const updatePadding = () => {
       const fadeContainer = fadeContainerRef.current;
       const descriptionText = descriptionRef.current;
@@ -429,12 +707,12 @@ export default function CardFront({
       clearTimeout(timeoutId);
       resizeObserver.disconnect();
     };
-  }, [profileDescription]);
+  }, [compactTypography, profileDescription]);
 
   return (
     <div
       ref={containerRef}
-      className={`${styles.cardContainer} relative`}
+      className={`${styles.cardContainer} ${compactTypography ? styles.compactTypography : ''} relative`}
       style={{ pointerEvents: disablePointerEvents ? 'none' : 'auto' }}
     >
       {/* 텍스트 컨테이너 - 남은 공간을 모두 차지 */}
@@ -457,7 +735,7 @@ export default function CardFront({
             {greetingText || 'Hello, I\'m'}{profileName ? ` ${profileName}${nameSuffix || ''}` : ''}
           </h2>
           {profileDescription && (
-            <div className={styles.descriptionContainer}>
+            <div className={styles.descriptionContainer} data-card-scroll-region>
               <p 
                 ref={descriptionRef}
                 className={styles.descriptionText}
@@ -471,6 +749,37 @@ export default function CardFront({
               </p>
             </div>
           )}
+          {isCompactHome && homePhotoLayout.count > 0 && (
+            <div
+              className={styles.dynamicHomePhotos}
+              data-photo-count={homePhotoLayout.count}
+              style={{ height: `${homePhotoLayout.height}px` }}
+              aria-hidden="true"
+            >
+              {Array.from({ length: homePhotoLayout.count }, (_, index) => {
+                const photoUrl = homePhotos[index];
+                return (
+                  <div key={photoUrl || `photo-slot-${index}`} className={styles.dynamicHomePhotoItem}>
+                    {photoUrl ? (
+                      <ImageWithLoader
+                        src={photoUrl}
+                        alt=""
+                        className={styles.dynamicHomePhotoImage}
+                        maxRetries={1}
+                        loadingComponent={<span className={styles.dynamicHomePhotoPlaceholder} />}
+                        fallback={<span className={styles.dynamicHomePhotoPlaceholder} />}
+                        decoding="async"
+                        loading="eager"
+                        draggable={false}
+                      />
+                    ) : (
+                      <span className={styles.dynamicHomePhotoPlaceholder} />
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
         {/* 변경된 컨텐츠 - 크로스페이드 인 */}
         <div
@@ -480,9 +789,12 @@ export default function CardFront({
             pointerEvents: scrollProgress >= 1 && scrollProgress < 2 ? 'auto' : 'none',
           }}
         >
-          <h2 className={styles.sectionTitle}>Apps</h2>
+          <h2 className={styles.sectionTitle}>{uiCopy.appsTitle}</h2>
           {/* 앱 목록 - 버튼 영역을 제외한 전체 공간 사용 */}
-          <div className={styles.appsList}>
+          <div
+            className={`${styles.appsList} ${compactTypography ? styles.compactAppsList : ''}`}
+            data-card-scroll-region
+          >
             {apps
               .slice((currentProjectPage - 1) * PROJECTS_PER_PAGE, currentProjectPage * PROJECTS_PER_PAGE)
               .map((app) => (
@@ -491,6 +803,12 @@ export default function CardFront({
                   app={app}
                   buttonFontSize={buttonFontSize}
                   iconSize={iconSize}
+                  compact={compactTypography}
+                  expanded={expandedAppId === app.id}
+                  closeLabel={closeAppModalText[language]}
+                  onToggle={() => {
+                    setExpandedAppId((currentId) => currentId === app.id ? null : app.id);
+                  }}
                 />
               ))}
                   </div>
@@ -546,7 +864,7 @@ export default function CardFront({
         </div>
       </div>
       {/* 버튼을 카드의 우측 하단에 배치 (텍스트 컨테이너 밖) */}
-      <div className={styles.buttonGroup}>
+      <div ref={buttonGroupRef} className={styles.buttonGroup}>
         <div className={styles.socialButtonRow}>
           {/* Instagram */}
           {instagramUrl && (
@@ -615,13 +933,13 @@ export default function CardFront({
                 }, 2000);
                 
                 // mailto 링크도 시도 (백업)
-                const subject = encodeURIComponent('Contact from Portfolio');
+                const subject = encodeURIComponent('Contact from jace-s.com');
                 const body = encodeURIComponent('Hello,\n\n');
                 const mailtoLink = `mailto:${email}?subject=${subject}&body=${body}`;
                 window.location.href = mailtoLink;
               } catch {
                 // 클립보드 복사 실패 시 mailto 링크만 시도
-                const subject = encodeURIComponent('Contact from Portfolio');
+                const subject = encodeURIComponent('Contact from jace-s.com');
                 const body = encodeURIComponent('Hello,\n\n');
                 const mailtoLink = `mailto:${email}?subject=${subject}&body=${body}`;
                 window.location.href = mailtoLink;
@@ -644,7 +962,7 @@ export default function CardFront({
                   fontSize: buttonFontSize,
                   textDecoration: 'none',
                 }}
-                title={emailCopied ? 'Email copied to clipboard!' : `Email: ${email}`}
+                title={emailCopied ? uiCopy.emailCopied : `${uiCopy.emailLabel}: ${email}`}
               >
                 <svg className={styles.icon} style={{ width: iconSize, height: iconSize }} fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
@@ -684,4 +1002,3 @@ export default function CardFront({
     </div>
   );
 }
-

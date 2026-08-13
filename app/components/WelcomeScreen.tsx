@@ -1,56 +1,69 @@
 ﻿'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import styles from './WelcomeScreen.module.css';
 
 interface WelcomeScreenProps {
   onComplete: () => void;
   ready?: boolean; // 로딩 완료 여부
   progressPercent?: number;
+  compact?: boolean;
 }
 
 export default function WelcomeScreen({
   onComplete,
   ready = false,
   progressPercent = 0,
+  compact = false,
 }: WelcomeScreenProps) {
   const timersRef = useRef<NodeJS.Timeout[]>([]);
   const hasStartedExitRef = useRef(false);
+  const [isExiting, setIsExiting] = useState(false);
 
-  // ready가 true가 되면 종료 애니메이션 + 0.25초 차단 후 완료
   useEffect(() => {
     if (ready && !hasStartedExitRef.current) {
       hasStartedExitRef.current = true;
-      const timer = setTimeout(() => {
-        onComplete();
-      }, 800 + 250); // 800ms 애니메이션 + 250ms 상호작용 차단 (1/2로 단축)
-      timersRef.current.push(timer);
+      const animationFrameId = window.requestAnimationFrame(() => {
+        setIsExiting(true);
+        const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        const completionDelay = prefersReducedMotion ? 20 : compact ? 240 : 1050;
+        const timer = setTimeout(onComplete, completionDelay);
+        timersRef.current.push(timer);
+      });
+
+      return () => {
+        window.cancelAnimationFrame(animationFrameId);
+        timersRef.current.forEach(clearTimeout);
+        timersRef.current = [];
+      };
     }
 
     return () => {
       timersRef.current.forEach(clearTimeout);
       timersRef.current = [];
     };
-  }, [ready, onComplete]);
+  }, [compact, ready, onComplete]);
 
   const clampedPercent = Math.min(100, Math.max(0, Math.round(progressPercent)));
 
   return (
     <div
-      className={`${styles.overlay} ${ready ? styles.overlayExiting : styles.overlayEntering}`}
+      className={`${styles.overlay} ${compact ? styles.overlayCompact : ''} ${isExiting ? styles.overlayExiting : styles.overlayEntering}`}
     >
-      <div
-        className={`${styles.content} ${ready ? styles.contentExiting : styles.contentEntering}`}
-      >
-        <h1 className={styles.title}>Welcome</h1>
-        <p className={styles.subtitle}>{`${clampedPercent}%`}</p>
-        <div className={styles.progressTrack} aria-label="Loading">
-          <div
-            className={styles.progressBar}
-            style={{ width: `${clampedPercent}%` }}
-          />
+      {!compact && (
+        <div
+          className={`${styles.content} ${isExiting ? styles.contentExiting : styles.contentEntering}`}
+        >
+          <h1 className={styles.title}>Welcome</h1>
+          <p className={styles.subtitle}>{`${clampedPercent}%`}</p>
+          <div className={styles.progressTrack} aria-label="Loading">
+            <div
+              className={styles.progressBar}
+              style={{ width: `${clampedPercent}%` }}
+            />
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }

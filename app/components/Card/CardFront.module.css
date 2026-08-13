@@ -7,7 +7,13 @@
   height: 100%;
   max-width: 100%;
   max-height: 100%;
-  background-color: rgb(30 41 55);
+  background:
+    radial-gradient(
+      circle at 100% 0%,
+      rgb(var(--mobile-card-accent, 30 41 55) / var(--mobile-card-glow-opacity, 0)),
+      transparent 44%
+    ),
+    rgb(30 41 55);
   border-radius: 1rem;
   box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
   padding: clamp(1rem, 2vw + 0.5rem, 3rem);
@@ -69,6 +75,95 @@
   width: 100%;
 }
 
+.compactTypography .fadeContainer {
+  gap: 0.625rem;
+  padding-top: var(--home-title-offset, 0px);
+  padding-bottom: var(--home-actions-reserve, 0px);
+}
+
+.compactTypography .greetingText {
+  position: static;
+}
+
+.compactTypography .descriptionContainer {
+  justify-content: flex-start;
+  padding-top: 0;
+  padding-bottom: 0;
+  overflow-y: auto;
+  touch-action: none;
+}
+
+.compactTypography .descriptionText {
+  margin-top: auto;
+  margin-bottom: auto;
+  line-height: 1.42;
+}
+
+.dynamicHomePhotos {
+  width: 100%;
+  min-height: 0;
+  flex: 0 0 auto;
+  display: grid;
+  gap: clamp(0.4rem, 1.6vw, 0.65rem);
+  opacity: 0.9;
+  animation: dynamicHomePhotosReveal 280ms ease both;
+}
+
+.dynamicHomePhotos[data-photo-count='1'] {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.dynamicHomePhotos[data-photo-count='2'] {
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 0.8fr);
+}
+
+.dynamicHomePhotos[data-photo-count='3'] {
+  grid-template-columns: minmax(0, 1.35fr) minmax(0, 0.85fr);
+  grid-template-rows: repeat(2, minmax(0, 1fr));
+}
+
+.dynamicHomePhotos[data-photo-count='3'] .dynamicHomePhotoItem:first-child {
+  grid-row: 1 / span 2;
+}
+
+.dynamicHomePhotoItem {
+  min-width: 0;
+  min-height: 0;
+  position: relative;
+  border: 1px solid rgba(216, 180, 254, 0.2);
+  border-radius: 0.7rem;
+  background: rgba(15, 23, 42, 0.72);
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.2);
+  overflow: hidden;
+}
+
+.dynamicHomePhotoItem::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, transparent 55%, rgba(15, 23, 42, 0.24));
+  pointer-events: none;
+}
+
+.dynamicHomePhotoImage,
+.dynamicHomePhotoPlaceholder {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.dynamicHomePhotoImage {
+  object-fit: cover;
+}
+
+.dynamicHomePhotoPlaceholder {
+  background:
+    linear-gradient(110deg, transparent 28%, rgba(255, 255, 255, 0.08) 42%, transparent 58%),
+    rgba(51, 65, 85, 0.74);
+  background-size: 220% 100%, 100% 100%;
+  animation: dynamicHomePhotoLoading 1.25s ease-in-out infinite;
+}
+
 .descriptionLink {
   color: rgb(216 180 254);
   text-decoration: underline;
@@ -89,7 +184,7 @@
 }
 
 .sectionTitle {
-  font-size: 2.25rem;
+  font-size: var(--mobile-font-section-title, 2.25rem);
   line-height: 2.5rem;
   font-weight: 700;
   margin-bottom: 1.5rem;
@@ -115,6 +210,19 @@
   scrollbar-color: rgba(255, 255, 255, 0.35) rgba(255, 255, 255, 0.08);
   scrollbar-gutter: stable;
   -ms-overflow-style: auto;
+}
+
+.compactTypography .appsList {
+  touch-action: none;
+}
+
+.compactAppsList {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  align-content: start;
+  gap: 0.65rem;
+  padding: 0.15rem 0.15rem 0.5rem;
+  scrollbar-gutter: auto;
 }
 
 .appsList::-webkit-scrollbar {
@@ -180,12 +288,39 @@
   gap: 1rem;
 }
 
+.compactTypography .buttonGroup {
+  padding: clamp(0.55rem, min(4vw, 2vh), 1rem);
+  flex-direction: row;
+  align-items: center;
+  gap: clamp(0.35rem, min(2vw, 1.3vh), 0.75rem);
+}
+
+.compactTypography .socialButtonRow {
+  gap: clamp(0.25rem, min(1.6vw, 1vh), 0.6rem);
+}
+
 .buttonBase {
+  position: relative;
   border-radius: 0.5rem;
   font-weight: 500;
   transition-property: color, background-color, border-color;
   transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
   transition-duration: 150ms;
+}
+
+.compactTypography .buttonBase::after,
+.compactTypography .paginationButton::after {
+  content: '';
+  width: max(100%, 2.75rem);
+  height: max(100%, 2.75rem);
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.compactTypography .paginationButton {
+  position: relative;
 }
 
 .buttonOutline {
@@ -234,3 +369,38 @@
   }
 }
 
+@media (min-width: 500px) and (max-width: 900px) and (max-height: 700px) {
+  .buttonGroup {
+    flex-direction: row;
+    align-items: center;
+  }
+}
+
+@keyframes dynamicHomePhotosReveal {
+  from {
+    opacity: 0;
+    transform: translateY(0.35rem);
+  }
+
+  to {
+    opacity: 0.9;
+    transform: translateY(0);
+  }
+}
+
+@keyframes dynamicHomePhotoLoading {
+  from {
+    background-position: 120% 0, 0 0;
+  }
+
+  to {
+    background-position: -120% 0, 0 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dynamicHomePhotos,
+  .dynamicHomePhotoPlaceholder {
+    animation: none;
+  }
+}

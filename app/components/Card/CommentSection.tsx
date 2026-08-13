@@ -3,20 +3,35 @@
  */
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import CommentItemComponent, { CommentItem } from './CommentItem';
 import styles from './CommentSection.module.css';
 
 const COMMENTS_PER_PAGE = 4;
 
-export default function CommentSection() {
+interface CommentSectionProps {
+  enabled?: boolean;
+  title?: string;
+}
+
+interface ToastState {
+  message: string;
+  tone: 'success' | 'error';
+}
+
+export default function CommentSection({ enabled = true, title = 'Comments' }: CommentSectionProps) {
   const [comments, setComments] = useState<CommentItem[]>([]);
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [totalCount, setTotalCount] = useState<number>(0);
   const [newContent, setNewContent] = useState<string>('');
   const [newPassword, setNewPassword] = useState<string>('');
   const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [showRules, setShowRules] = useState<boolean>(false);
+  const [isComposerOpen, setIsComposerOpen] = useState<boolean>(false);
+  const [toast, setToast] = useState<ToastState | null>(null);
+  const addCommentButtonRef = useRef<HTMLButtonElement>(null);
+  const commentTextareaRef = useRef<HTMLTextAreaElement>(null);
 
   // 앱 목록과 동일하게 현재 페이지와 같은 origin의 API Routes를 사용합니다.
   const apiUrl = '/api/';
@@ -81,6 +96,8 @@ export default function CommentSection() {
 
   // 컴포넌트 마운트 시 즉시 첫 페이지 댓글 로드
   useEffect(() => {
+    if (!enabled) return;
+
     let cancelled = false;
     
     const loadComments = async () => {
@@ -135,12 +152,12 @@ export default function CommentSection() {
     return () => {
       cancelled = true;
     };
-  }, [apiUrl, setPlaceholderComments]); // 마운트 시 한 번만 실행
+  }, [apiUrl, enabled, setPlaceholderComments]);
 
   // 페이지 변경 시 댓글 로드 (마운트 후)
   useEffect(() => {
     // 첫 마운트가 아니고 currentPage가 1이 아닐 때만 로드
-    if (currentPage === 1) return;
+    if (!enabled || currentPage === 1) return;
     
     let cancelled = false;
     
@@ -195,7 +212,20 @@ export default function CommentSection() {
     return () => {
       cancelled = true;
     };
-  }, [currentPage, apiUrl, setPlaceholderComments]);
+  }, [currentPage, apiUrl, enabled, setPlaceholderComments]);
+
+  useEffect(() => {
+    if (isComposerOpen) {
+      commentTextareaRef.current?.focus();
+    }
+  }, [isComposerOpen]);
+
+  useEffect(() => {
+    if (!toast) return;
+
+    const timeoutId = window.setTimeout(() => setToast(null), 3000);
+    return () => window.clearTimeout(timeoutId);
+  }, [toast]);
 
   const handlePrevPage = () => {
     if (currentPage > 1) {
@@ -210,11 +240,18 @@ export default function CommentSection() {
     }
   };
 
+  const closeComposer = () => {
+    setIsComposerOpen(false);
+    addCommentButtonRef.current?.focus();
+  };
+
   const handleCreateComment = async () => {
     if (!newContent || !newPassword) {
-      alert('Please enter both comment content and password.');
+      setToast({ message: 'Please enter both comment content and password.', tone: 'error' });
       return;
     }
+
+    setIsSubmitting(true);
     try {
       const requestBody = { parentHeaderId: null, content: newContent, userPassword: newPassword };
       const requestUrl = `${apiUrl}comments`;
@@ -229,7 +266,7 @@ export default function CommentSection() {
         const contentType = res.headers.get('content-type');
         if (contentType && contentType.includes('application/json')) {
           const data = await res.json();
-          alert(`Failed: ${data.error || 'Unknown error'}`);
+          setToast({ message: `Failed: ${data.error || 'Unknown error'}`, tone: 'error' });
         } else {
           throw new Error(`HTTP error! status: ${res.status}`);
         }
@@ -245,11 +282,18 @@ export default function CommentSection() {
       await res.json();
       setNewContent('');
       setNewPassword('');
+      closeComposer();
+      setToast({ message: 'Comment posted.', tone: 'success' });
       // 새 댓글 생성 후 첫 페이지로 리셋
       setCurrentPage(1);
       fetchComments(1);
     } catch {
-      alert('Failed to create comment. API endpoint may not be configured. Please check the API Routes setup.');
+      setToast({
+        message: 'Failed to create comment. Please try again.',
+        tone: 'error',
+      });
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -260,40 +304,101 @@ export default function CommentSection() {
 
   return (
     <div className={styles.container}>
-      <h2 className={styles.title}>Comments</h2>
+      <div className={styles.topBar}>
+        <h2 className={styles.title}>{title}</h2>
+
+        <button
+          ref={addCommentButtonRef}
+          type="button"
+          className={styles.addCommentButton}
+          onClick={() => setIsComposerOpen(true)}
+          aria-haspopup="dialog"
+          aria-expanded={isComposerOpen}
+        >
+          <span aria-hidden="true">＋</span>
+          <span>Add</span>
+        </button>
+      </div>
 
       {/* 정보 텍스트 */}
       <p className={styles.infoText}>
         * Your username is generated based on a hash of your IP address.
       </p>
 
-      {/* 코멘트 입력 폼 */}
-      <div className={styles.formContainer}>
-        <div className={styles.formGrid}>
-          <textarea
-            className={styles.textarea}
-            rows={3}
-            placeholder="Enter your comment"
-            value={newContent}
-            onChange={(e) => setNewContent(e.target.value)}
-          />
-          <div className={styles.inputGroup}>
-            <input
-              type="password"
-              className={styles.input}
-              placeholder="Password"
-              value={newPassword}
-              onChange={(e) => setNewPassword(e.target.value)}
-            />
+      {/* 코멘트 입력 */}
+      <div
+        className={`${styles.composerLayer} ${isComposerOpen ? styles.composerLayerOpen : ''}`}
+        role={isComposerOpen ? 'dialog' : undefined}
+        aria-modal={isComposerOpen ? true : undefined}
+        aria-label={isComposerOpen ? 'Add Comment' : undefined}
+        onPointerDown={(event) => event.stopPropagation()}
+        onKeyDown={(event) => {
+          event.stopPropagation();
+          if (event.key === 'Escape') closeComposer();
+        }}
+      >
+        <button
+          type="button"
+          className={styles.composerBackdrop}
+          onClick={closeComposer}
+          aria-label="Close comment form"
+        />
+        <div className={styles.formContainer}>
+          <div className={styles.composerHeader}>
+            <h3 className={styles.composerTitle}>Add Comment</h3>
             <button
-              onClick={handleCreateComment}
-              className={styles.submitButton}
+              type="button"
+              className={styles.closeComposerButton}
+              onClick={closeComposer}
+              aria-label="Close comment form"
             >
-              Submit Comment
+              ×
             </button>
           </div>
+          <form
+            className={styles.formGrid}
+            onSubmit={(event) => {
+              event.preventDefault();
+              handleCreateComment();
+            }}
+          >
+            <textarea
+              ref={commentTextareaRef}
+              className={styles.textarea}
+              rows={3}
+              placeholder="Enter your comment"
+              value={newContent}
+              onChange={(e) => setNewContent(e.target.value)}
+            />
+            <div className={styles.inputGroup}>
+              <input
+                type="password"
+                className={styles.input}
+                placeholder="Password"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+              />
+              <button
+                type="submit"
+                className={styles.submitButton}
+                disabled={isSubmitting}
+              >
+                {isSubmitting ? 'Posting...' : 'Post Comment'}
+              </button>
+            </div>
+          </form>
         </div>
       </div>
+
+      {toast && (
+        <div
+          className={`${styles.toast} ${toast.tone === 'error' ? styles.toastError : ''}`}
+          role={toast.tone === 'error' ? 'alert' : 'status'}
+          aria-live={toast.tone === 'error' ? 'assertive' : 'polite'}
+        >
+          {toast.message}
+        </div>
+      )}
 
       {/* 규칙 토글 */}
       <div className={styles.rulesToggle}>
@@ -314,7 +419,7 @@ export default function CommentSection() {
       </div>
 
       {/* 코멘트 목록 (스크롤 가능) */}
-      <div className={styles.commentsList}>
+      <div className={styles.commentsList} data-card-scroll-region>
         {isLoading ? (
           <div className={styles.loadingMessage}>
             <p>Loading comments...</p>
@@ -345,9 +450,11 @@ export default function CommentSection() {
             handlePrevPage();
           }}
           className={styles.paginationButton}
+          aria-label="Previous comments page"
           style={{ pointerEvents: 'auto', zIndex: 1000, position: 'relative' }}
         >
-          Previous
+          <span className={styles.paginationLabel}>Previous</span>
+          <span className={styles.paginationIcon} aria-hidden="true">‹</span>
         </button>
         <span className={styles.paginationInfo}>
           {currentPage} / {totalPages}
@@ -360,9 +467,11 @@ export default function CommentSection() {
             handleNextPage();
           }}
           className={styles.paginationButton}
+          aria-label="Next comments page"
           style={{ pointerEvents: 'auto', zIndex: 1000, position: 'relative' }}
         >
-          Next
+          <span className={styles.paginationLabel}>Next</span>
+          <span className={styles.paginationIcon} aria-hidden="true">›</span>
         </button>
       </div>
 

@@ -10,6 +10,7 @@ import { fetchAssetsManifest, getCertifications } from '../../utils/assetUtils';
 import type { CertificationData } from '../../types/assets';
 import { BUTTON_MAX_FACTOR, CARD_WIDTH, BUTTON_PADDING, BUTTON_FONT } from '../../constants/buttonConstants';
 import { isInMarker1, isInMarker2 } from '../../constants/markerConstants';
+import useMediaQuery from '../../hooks/useMediaQuery';
 import ImageWithLoader from '../ImageWithLoader';
 import styles from './CardBack.module.css';
 
@@ -19,7 +20,20 @@ interface CardBackProps {
   certificationText: Record<Language, string>;
   setSelectedCertification: (cert: string | null) => void;
   setIsCardFlipped: (flipped: boolean | ((prev: boolean) => boolean)) => void;
+  compact?: boolean;
 }
+
+const cardBackCopy: Record<Language, {
+  commentsTitle: string;
+  loading: string;
+  empty: string;
+  back: string;
+}> = {
+  en: { commentsTitle: 'Comments', loading: 'Loading...', empty: 'No certifications available', back: 'Back' },
+  ko: { commentsTitle: '댓글', loading: '불러오는 중...', empty: '표시할 자격증이 없습니다', back: '뒤로' },
+  ja: { commentsTitle: 'コメント', loading: '読み込み中...', empty: '表示できる資格がありません', back: '戻る' },
+  zh: { commentsTitle: '评论', loading: '加载中...', empty: '暂无可显示的证书', back: '返回' },
+};
 
 export default function CardBack({
   scrollProgress,
@@ -27,7 +41,10 @@ export default function CardBack({
   certificationText,
   setSelectedCertification,
   setIsCardFlipped,
+  compact = false,
 }: CardBackProps) {
+  const uiCopy = cardBackCopy[language];
+  const shouldLoadDesktopComments = useMediaQuery('(min-width: 601px)');
   const [certifications, setCertifications] = useState<CertificationData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -147,11 +164,11 @@ export default function CardBack({
   return (
     <div
       ref={containerRef}
-      className={styles.cardContainer}
+      className={`${styles.cardContainer} ${compact ? styles.compactCard : ''}`}
     >
       {/* 댓글 섹션: 항상 마운트되어 미리 로드, 보이지 않을 때는 숨김 */}
       <div style={{ display: showComments ? 'block' : 'none', height: '100%', minHeight: 0 }}>
-        <CommentSection />
+        <CommentSection enabled={shouldLoadDesktopComments} title={uiCopy.commentsTitle} />
       </div>
       
       {/* 자격증 그리드: 댓글이 보일 때는 숨김 */}
@@ -168,13 +185,13 @@ export default function CardBack({
                   key={index}
                     className={styles.loadingItem}
                 >
-                    <span className={styles.loadingText}>Loading...</span>
+                    <span className={styles.loadingText}>{uiCopy.loading}</span>
                 </div>
               ))
             ) : certifications.length === 0 ? (
               // 자격증이 없는 경우
               <div className={styles.emptyMessage}>
-                No certifications available
+                {uiCopy.empty}
               </div>
             ) : (
               // 자격증 표시 (3x3 그리드, 빈 칸은 플레이스홀더로 표시)
@@ -200,7 +217,7 @@ export default function CardBack({
                           className={styles.certImage}
                           loadingComponent={
                             <div className={styles.loadingItem} style={{ width: '100%', height: '100%' }}>
-                              <span className={styles.loadingText}>Loading...</span>
+                              <span className={styles.loadingText}>{uiCopy.loading}</span>
                             </div>
                           }
                           fallback={
@@ -244,7 +261,7 @@ export default function CardBack({
                 fontSize: buttonFontSize,
               }}
             >
-              Back
+              {uiCopy.back}
             </button>
           </div>
         </div>
@@ -252,4 +269,3 @@ export default function CardBack({
     </div>
   );
 }
-
