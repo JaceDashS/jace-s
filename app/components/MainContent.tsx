@@ -10,12 +10,12 @@ import MobileContent from './MobileContent';
 import { CARD_SCALE, CARD_Z_INDEX } from '../constants/cardConstants';
 import { HOVER_ANIMATION_SPEED_MS, HOVER_Z_INDEX_CHANGE_DELAY_MS } from '../constants/hoverConstants';
 import { isInMarker1 } from '../constants/markerConstants';
-import type { Language } from '../types/mainContent';
 import { useFadeAnimation } from '../hooks/useFadeAnimation';
 import { useCardState } from '../hooks/useCardState';
 import { useWelcomeFlow } from '../hooks/useWelcomeFlow';
 import { useMainContentData } from '../hooks/useMainContentData';
 import { useMainContentRouteSync } from '../hooks/useMainContentRouteSync';
+import { useMainContentLanguage } from '../hooks/useMainContentLanguage';
 import CardFront from './Card/CardFront';
 import CardBack from './Card/CardBack';
 import RightCardContent from './Card/RightCardContent';
@@ -71,7 +71,7 @@ export default function MainContent() {
   const [desktopPhotoCardFade, setDesktopPhotoCardFade] = useState(1);
   const leftCardRef = useRef<HTMLDivElement>(null);
   const rightCardRef = useRef<HTMLDivElement>(null);
-  const [language, setLanguage] = useState<Language>('en'); // 언어 상태 (기본값: 영어)
+  const { language, setLanguage } = useMainContentLanguage();
   const [selectedCertification, setSelectedCertification] = useState<string | null>(null); // 선택된 자격증 키 (null이면 홈 포토 표시)
   const [currentProjectPage, setCurrentProjectPage] = useState(1); // 프로젝트 페이지네이션 현재 페이지
   const [isHomeCardShaking, setIsHomeCardShaking] = useState(false);
@@ -437,27 +437,6 @@ export default function MainContent() {
   ]);
 
   useMainContentRouteSync({ pathname, showContent, isAnimating });
-
-  // 디바이스 언어 감지 및 자동 선택
-  useEffect(() => {
-    const timerId = window.setTimeout(() => {
-      const browserLang =
-        navigator.language ||
-        (navigator as Navigator & { userLanguage?: string }).userLanguage ||
-        'en';
-      const langCode = browserLang.toLowerCase().split('-')[0]; // 'ko-KR' -> 'ko'
-
-      // 지원하는 언어인지 확인하고 설정
-      if (langCode === 'ko' || langCode === 'ja' || langCode === 'zh') {
-        setLanguage(langCode as 'ko' | 'ja' | 'zh');
-      } else {
-        // 기본값은 영어
-        setLanguage('en');
-      }
-    }, 0);
-
-    return () => window.clearTimeout(timerId);
-  }, []);
 
   // 페이드 애니메이션 계산은 useFadeAnimation 훅 사용
   const { greetingFade, photoCardFade, appsFade } = useFadeAnimation(scrollProgress);
