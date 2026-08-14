@@ -6,8 +6,8 @@ import type { CSSProperties, MouseEvent } from 'react';
 import { PROJECTS_PER_PAGE } from '../../constants/gridConstants';
 import type { Language } from '../../types/mainContent';
 import type { App } from '../../types/app';
-import { fetchAssetsManifest, getRandomHomePhotos } from '../../utils/assetUtils';
 import { useCardFrontLinks } from '../../hooks/useCardFrontLinks';
+import { useCardFrontPhotos } from '../../hooks/useCardFrontPhotos';
 import { BUTTON_MAX_FACTOR, CARD_WIDTH as BUTTON_CARD_WIDTH, BUTTON_PADDING, BUTTON_FONT, ICON_SIZE } from '../../constants/buttonConstants';
 import ImageWithLoader from '../ImageWithLoader';
 import AppItem from './AppItem';
@@ -158,7 +158,6 @@ export default function CardFront({
   const fadeContainerRef = useRef<HTMLDivElement>(null);
   const descriptionRef = useRef<HTMLParagraphElement>(null);
   const buttonGroupRef = useRef<HTMLDivElement>(null);
-  const homePhotosLoadStartedRef = useRef(false);
   const isHomeLinksActive = scrollProgress === 0;
   const isCompactHome = compactTypography && scrollProgress === 0;
   const desktopCardAccent = appsFade > greetingFade ? '34 211 238' : '168 85 247';
@@ -208,8 +207,11 @@ export default function CardFront({
   const [iconSize, setIconSize] = useState(`${initialIconSizeMax}rem`);
   const [emailCopied, setEmailCopied] = useState(false);
   const [expandedAppId, setExpandedAppId] = useState<number | null>(null);
-  const [homePhotos, setHomePhotos] = useState<string[]>([]);
   const [homePhotoLayout, setHomePhotoLayout] = useState({ height: 0, count: 0 });
+  const homePhotos = useCardFrontPhotos({
+    isCompactHome,
+    photoCount: homePhotoLayout.count,
+  });
   
   const {
     instagramUrl,
@@ -268,35 +270,6 @@ export default function CardFront({
       );
     });
   }, [profileDescription, profileLinks, compositionUrl, guitarUrl]);
-
-  useEffect(() => {
-    if (!isCompactHome || homePhotoLayout.count === 0 || homePhotosLoadStartedRef.current) {
-      return;
-    }
-
-    let cancelled = false;
-    homePhotosLoadStartedRef.current = true;
-
-    const loadHomePhotos = async () => {
-      const manifest = await fetchAssetsManifest();
-      if (!manifest || cancelled) {
-        return;
-      }
-
-      const selectedPhotos = getRandomHomePhotos(manifest, 1, 2);
-      const selectedPhotoUrls = [...selectedPhotos.large, ...selectedPhotos.small];
-
-      if (!cancelled) {
-        setHomePhotos(selectedPhotoUrls);
-      }
-    };
-
-    loadHomePhotos();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [homePhotoLayout.count, isCompactHome]);
 
   // 카드 너비에 따라 폰트 크기 및 버튼 크기 조정
   useLayoutEffect(() => {
