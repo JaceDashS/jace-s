@@ -1,11 +1,11 @@
 'use client';
 
-import { useState } from 'react';
 import type { CSSProperties } from 'react';
 import type { App } from '../types/app';
 import type { Language } from '../types/mainContent';
 import useMediaQuery from '../hooks/useMediaQuery';
 import { MOBILE_CARD_INDEXES, useMobileCardGesture } from '../hooks/useMobileCardGesture';
+import { useMobileCertificateFlow } from '../hooks/useMobileCertificateFlow';
 import CardBack from './Card/CardBack';
 import CardFront from './Card/CardFront';
 import CommentSection from './Card/CommentSection';
@@ -139,23 +139,11 @@ export default function MobileContent({
     handlePointerOut,
     handleKeyDown,
   } = useMobileCardGesture({ visible, isMobileViewport });
-  const [selectedCertification, setSelectedCertification] = useState<string | null>(null);
-
-  const setMobileCertificateFlipped = (
-    flipped: boolean | ((previous: boolean) => boolean)
-  ) => {
-    const shouldShowCertificate = typeof flipped === 'function'
-      ? flipped(activeHomeFace !== 'home')
-      : flipped;
-    flipHomeFace(shouldShowCertificate ? 'certificate' : 'home');
-  };
-
-  const showCertificateDetail = (certification: string | null) => {
-    if (!certification) return;
-
-    setSelectedCertification(certification);
-    flipHomeFace('certificateDetail');
-  };
+  const {
+    selectedCertification,
+    setMobileCertificateFlipped,
+    showCertificateDetail,
+  } = useMobileCertificateFlow({ activeHomeFace, flipHomeFace });
 
   const sharedCardProps = {
     apps,
