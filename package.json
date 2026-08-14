@@ -12,6 +12,7 @@
     "lint": "eslint .",
     "lint:check": "eslint .",
     "type-check": "tsc --noEmit",
+    "test:cors-policy": "tsx scripts/test-cors-policy.ts",
     "clean": "if exist .next rmdir /s /q .next && if exist node_modules\\.cache rmdir /s /q node_modules\\.cache",
     "clean:unix": "rm -rf .next node_modules/.cache",
     "docker:build:prod": "node scripts/docker-build-with-env.mjs .env.production --target runner -t jace-s:latest .",
