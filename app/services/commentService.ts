@@ -8,6 +8,26 @@ import { handleLob } from '../utils/handleLob';
 import { hashPassword, comparePassword } from '../utils/passwordUtils';
 import type { Comment } from '../types/comment';
 
+async function rollbackConnection(connection: oracledb.Connection | undefined): Promise<void> {
+  if (!connection) return;
+
+  try {
+    await connection.rollback();
+  } catch (rollbackError) {
+    console.error('[DB ERROR] 롤백 중 오류:', rollbackError);
+  }
+}
+
+async function closeConnection(connection: oracledb.Connection | undefined): Promise<void> {
+  if (!connection) return;
+
+  try {
+    await connection.close();
+  } catch (closeError) {
+    console.error('[DB ERROR] DB 연결 종료 중 오류:', closeError);
+  }
+}
+
 interface ParentCommentRowRaw {
   ID: number;
   HASHED_USER_IP: string;
@@ -206,13 +226,7 @@ export async function getComments(
     console.error('[COMMENT SERVICE ERROR] 부모+자식 댓글 조회 중 오류:', error);
     throw error;
   } finally {
-    if (connection) {
-      try {
-        await connection.close();
-      } catch (closeError) {
-        console.error('[DB ERROR] DB 연결 종료 중 오류:', closeError);
-      }
-    }
+    await closeConnection(connection);
   }
 }
 
@@ -309,23 +323,11 @@ export async function createComment(
     
     return newId;
   } catch (error) {
-    if (connection) {
-      try {
-        await connection.rollback();
-      } catch (rollbackError) {
-        console.error('[DB ERROR] 롤백 중 오류:', rollbackError);
-      }
-    }
+    await rollbackConnection(connection);
     console.error('[COMMENT SERVICE ERROR] 댓글 생성 중 오류:', error);
     throw error;
   } finally {
-    if (connection) {
-      try {
-        await connection.close();
-      } catch (closeError) {
-        console.error('[DB ERROR] DB 연결 종료 중 오류:', closeError);
-      }
-    }
+    await closeConnection(connection);
   }
 }
 
@@ -483,23 +485,11 @@ export async function updateComment(
 
     return newId;
   } catch (error) {
-    if (connection) {
-      try {
-        await connection.rollback();
-      } catch (rollbackError) {
-        console.error('[DB ERROR] 롤백 중 오류:', rollbackError);
-      }
-    }
+    await rollbackConnection(connection);
     console.error('[COMMENT SERVICE ERROR] 댓글 수정 중 오류:', error);
     throw error;
   } finally {
-    if (connection) {
-      try {
-        await connection.close();
-      } catch (closeError) {
-        console.error('[DB ERROR] DB 연결 종료 중 오류:', closeError);
-      }
-    }
+    await closeConnection(connection);
   }
 }
 
@@ -623,23 +613,11 @@ export async function deleteComment(
 
     return newId;
   } catch (error) {
-    if (connection) {
-      try {
-        await connection.rollback();
-      } catch (rollbackError) {
-        console.error('[DB ERROR] 롤백 중 오류:', rollbackError);
-      }
-    }
+    await rollbackConnection(connection);
     console.error('[COMMENT SERVICE ERROR] 댓글 삭제 중 오류:', error);
     throw error;
   } finally {
-    if (connection) {
-      try {
-        await connection.close();
-      } catch (closeError) {
-        console.error('[DB ERROR] DB 연결 종료 중 오류:', closeError);
-      }
-    }
+    await closeConnection(connection);
   }
 }
 
@@ -724,12 +702,6 @@ export async function getCommentHistory(commentId: number): Promise<Comment[]> {
     console.error('[COMMENT SERVICE ERROR] 댓글 히스토리 조회 중 오류:', error);
     throw error;
   } finally {
-    if (connection) {
-      try {
-        await connection.close();
-      } catch (closeError) {
-        console.error('[DB ERROR] DB 연결 종료 중 오류:', closeError);
-      }
-    }
+    await closeConnection(connection);
   }
 }
