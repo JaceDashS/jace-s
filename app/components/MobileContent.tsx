@@ -4,12 +4,11 @@ import type { CSSProperties } from 'react';
 import type { App } from '../types/app';
 import type { Language } from '../types/mainContent';
 import useMediaQuery from '../hooks/useMediaQuery';
-import { MOBILE_CARD_INDEXES, useMobileCardGesture } from '../hooks/useMobileCardGesture';
+import { useMobileCardGesture } from '../hooks/useMobileCardGesture';
 import { useMobileCertificateFlow } from '../hooks/useMobileCertificateFlow';
-import CardBack from './Card/CardBack';
 import CardFront from './Card/CardFront';
 import CommentSection from './Card/CommentSection';
-import RightCardContent from './Card/RightCardContent';
+import MobileCardFaces from './MobileCardFaces';
 import styles from './MobileContent.module.css';
 
 interface MobileContentProps {
@@ -183,14 +182,6 @@ export default function MobileContent({
     );
   };
 
-  const isHomeFaceActive = activeCard === 0 && activeHomeFace === 'home';
-  const isHomeFaceVisible = isHomeFaceActive || nextCard === 0 || nextHomeFace === 'home';
-  const isCertificateFaceActive = activeCard === 0 && activeHomeFace === 'certificate';
-  const isCertificateFaceVisible = isCertificateFaceActive || nextHomeFace === 'certificate';
-  const isCertificateDetailFaceActive = activeCard === 0 && activeHomeFace === 'certificateDetail';
-  const isCertificateDetailFaceVisible =
-    isCertificateDetailFaceActive || nextHomeFace === 'certificateDetail';
-
   return (
     <section className={styles.mobileExperience} data-visible={visible} aria-label={uiCopy.portfolioLabel}>
       <header className={styles.header}>
@@ -224,83 +215,32 @@ export default function MobileContent({
         tabIndex={0}
         aria-label={uiCopy.cardRegion}
       >
-        <article
-          className={`${styles.cardLayer} ${showSwipeCoachMark && flipPhase === 'idle' ? styles.coachHint : ''} ${flipPhase === 'dragging' ? styles.isDragging : ''} ${flipPhase === 'settlingThrough' ? styles.isFlipping : ''} ${flipPhase === 'returning' ? styles.isReturning : ''}`}
-          aria-label={uiCopy.cardLabel(activeHomeFace === 'certificateDetail' && selectedCertification
+        <MobileCardFaces
+          activeCard={activeCard}
+          nextCard={nextCard}
+          flipPhase={flipPhase}
+          rotation={rotation}
+          flipDuration={flipDuration}
+          showSwipeCoachMark={showSwipeCoachMark}
+          activeHomeFace={activeHomeFace}
+          nextHomeFace={nextHomeFace}
+          isCertificateMounted={isCertificateMounted}
+          selectedCertification={selectedCertification}
+          language={language}
+          certificationText={certificationText}
+          cardLabel={uiCopy.cardLabel(activeHomeFace === 'certificateDetail' && selectedCertification
             ? selectedCertification
             : activeHomeFace === 'certificate'
               ? certificationText[language]
               : uiCopy.cards[activeCard])}
+          backLabel={uiCopy.back}
+          isCardMounted={isCardMounted}
+          renderCard={renderCard}
+          showCertificateDetail={showCertificateDetail}
+          setMobileCertificateFlipped={setMobileCertificateFlipped}
           onTransitionEnd={handleFlipEnd}
-          style={{ '--card-rotation': `${rotation}deg`, '--flip-duration': `${flipDuration}ms` } as CSSProperties}
-        >
-          {isCardMounted(0) && (
-            <div
-              className={`${styles.cardFace} ${isHomeFaceActive ? styles.frontCardFace : styles.backCardFace} ${isHomeFaceVisible ? styles.visibleCardFace : styles.inactiveCardFace}`}
-              aria-hidden={!isHomeFaceVisible}
-            >
-              {renderCard(0)}
-            </div>
-          )}
-          {isCardMounted(0) && isCertificateMounted && (
-            <div
-              className={`${styles.cardFace} ${isCertificateFaceActive ? styles.frontCardFace : styles.backCardFace} ${isCertificateFaceVisible ? styles.visibleCardFace : styles.inactiveCardFace}`}
-              aria-hidden={!isCertificateFaceVisible}
-            >
-              <div className={`${styles.cardShell} ${styles.certificateCard}`}>
-                <CardBack
-                  compact
-                  scrollProgress={0}
-                  language={language}
-                  certificationText={certificationText}
-                  setSelectedCertification={showCertificateDetail}
-                  setIsCardFlipped={setMobileCertificateFlipped}
-                />
-              </div>
-            </div>
-          )}
-          {isCardMounted(0) && selectedCertification && (
-            <div
-              className={`${styles.cardFace} ${isCertificateDetailFaceActive ? styles.frontCardFace : styles.backCardFace} ${isCertificateDetailFaceVisible ? styles.visibleCardFace : styles.inactiveCardFace}`}
-              aria-hidden={!isCertificateDetailFaceVisible}
-            >
-              <div className={`${styles.cardShell} ${styles.certificateDetailCard}`}>
-                <div className={styles.certificateDetailContent}>
-                  <h2 className={styles.certificateDetailTitle}>{selectedCertification}</h2>
-                  <div className={styles.certificateDetailDocument}>
-                    <RightCardContent
-                      certificateOnly
-                      selectedCertification={selectedCertification}
-                      photoCardFade={1}
-                    />
-                  </div>
-                  <div className={styles.certificateDetailActions}>
-                    <button
-                      type="button"
-                      className={styles.certificateDetailBackButton}
-                      onClick={(event) => {
-                        event.preventDefault();
-                        event.stopPropagation();
-                        flipHomeFace('certificate');
-                      }}
-                    >
-                      {uiCopy.back}
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-          {MOBILE_CARD_INDEXES.filter((index) => index !== 0 && isCardMounted(index)).map((index) => (
-            <div
-              key={index}
-              className={`${styles.cardFace} ${index === activeCard ? styles.frontCardFace : styles.backCardFace} ${index === activeCard || index === nextCard ? styles.visibleCardFace : styles.inactiveCardFace}`}
-              aria-hidden={index !== activeCard && index !== nextCard}
-            >
-              {renderCard(index)}
-            </div>
-          ))}
-        </article>
+        />
+
         {showSwipeCoachMark && (
           <div
             className={styles.swipeCoachMark}

@@ -4,7 +4,7 @@ import type { KeyboardEvent, PointerEvent, RefObject, TransitionEvent } from 're
 export const MOBILE_CARD_INDEXES = [0, 1, 2] as const;
 
 export type HomeFace = 'home' | 'certificate' | 'certificateDetail';
-type FlipPhase = 'idle' | 'dragging' | 'settlingThrough' | 'returning';
+export type FlipPhase = 'idle' | 'dragging' | 'settlingThrough' | 'returning';
 
 const SWIPE_THRESHOLD = 0.3;
 const SWIPE_START_THRESHOLD_PX = 12;
