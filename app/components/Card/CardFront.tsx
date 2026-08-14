@@ -1,27 +1,18 @@
 /**
  * 카드 앞면 컴포넌트
  */
-import { useState, useEffect, useRef, useMemo } from 'react';
+import { useState, useRef, useMemo } from 'react';
 import type { CSSProperties, MouseEvent } from 'react';
 import { PROJECTS_PER_PAGE } from '../../constants/gridConstants';
 import type { Language } from '../../types/mainContent';
 import type { App } from '../../types/app';
 import { useCardFrontLinks } from '../../hooks/useCardFrontLinks';
 import { useCardFrontPhotos } from '../../hooks/useCardFrontPhotos';
+import { useCardFrontPadding } from '../../hooks/useCardFrontPadding';
 import { useCardFrontResponsiveLayout } from '../../hooks/useCardFrontResponsiveLayout';
 import ImageWithLoader from '../ImageWithLoader';
 import AppItem from './AppItem';
 import styles from './CardFront.module.css';
-
-// 패딩 관련 상수
-const PADDING_CONFIG = {
-  // 상단 패딩 최대값 (px)
-  TOP_PADDING_MAX: 100, // 5rem = 80px (16px 기준)
-  // 하단 패딩 임계값 (px) - 이 값 이하로 내려가면 상단 패딩도 1:1로 줄어듦
-  BOTTOM_PADDING_THRESHOLD: 48, // 3rem = 48px
-  // 하단 패딩 최소값 (px)
-  BOTTOM_PADDING_MIN: 32, // 2rem = 32px
-} as const;
 
 const cardFrontCopy: Record<Language, {
   appsTitle: string;
@@ -154,6 +145,13 @@ export default function CardFront({
     isCompactHome,
     photoCount: homePhotoLayout.count,
   });
+  useCardFrontPadding({
+    fadeContainerRef,
+    descriptionRef,
+    greetingClassName: styles.greetingText,
+    compactTypography,
+    profileDescription,
+  });
   
   const {
     instagramUrl,
@@ -212,67 +210,6 @@ export default function CardFront({
       );
     });
   }, [profileDescription, profileLinks, compositionUrl, guitarUrl]);
-
-  // 패딩 동적 계산 (상단/하단 패딩 조정)
-  useEffect(() => {
-    if (compactTypography) return;
-
-    const updatePadding = () => {
-      const fadeContainer = fadeContainerRef.current;
-      const descriptionText = descriptionRef.current;
-      const greetingElement = fadeContainer?.querySelector(`.${styles.greetingText}`);
-      
-      if (!fadeContainer || !greetingElement) return;
-      
-      const containerHeight = fadeContainer.clientHeight;
-      const greetingHeight = greetingElement.clientHeight;
-      const descriptionHeight = descriptionText?.clientHeight ?? 0;
-      
-      // 사용 가능한 공간 계산
-      const availableSpace = Math.max(0, containerHeight - greetingHeight - descriptionHeight);
-      
-      // 하단 패딩 계산 (기본적으로 사용 가능한 공간의 절반, 최소값 보장)
-      let bottomPadding = Math.max(availableSpace / 2, PADDING_CONFIG.BOTTOM_PADDING_MIN);
-      
-      // ????<" ?O"?"c ?3,?,? (?,"??? ?3???,)
-      let topPadding = Math.max(0, availableSpace - bottomPadding);
-      
-      // ??~?<" ?O"?"c??" ?z,?3,??' ??"??~??o ?,'???????c', ????<" ?O"?"c??, 1:1??o ??,?-'?"?
-      if (bottomPadding <= PADDING_CONFIG.BOTTOM_PADDING_THRESHOLD) {
-        const ratio = bottomPadding / PADDING_CONFIG.BOTTOM_PADDING_THRESHOLD;
-        topPadding = Math.max(0, topPadding * ratio);
-        bottomPadding = Math.max(availableSpace - topPadding, PADDING_CONFIG.BOTTOM_PADDING_MIN);
-        topPadding = Math.max(0, availableSpace - bottomPadding);
-      }
-      
-      // ????<" ?O"?"c ??o?O???' ????sc (?z|?z, ??~?<" ?O"?"c??, ??"??"??O)
-      if (topPadding > PADDING_CONFIG.TOP_PADDING_MAX) {
-        topPadding = PADDING_CONFIG.TOP_PADDING_MAX;
-        bottomPadding = Math.max(availableSpace - topPadding, PADDING_CONFIG.BOTTOM_PADDING_MIN);
-        topPadding = Math.max(0, availableSpace - bottomPadding);
-      }
-
-      // CSS 변수로 패딩 적용
-      fadeContainer.style.setProperty('--top-padding', `${topPadding}px`);
-      fadeContainer.style.setProperty('--bottom-padding', `${bottomPadding}px`);
-    };
-
-    // 초기 계산
-    const timeoutId = setTimeout(() => {
-      updatePadding();
-    }, 100);
-
-    // ResizeObserver로 컨테이너 크기 변화 감지
-    const resizeObserver = new ResizeObserver(() => {
-      updatePadding();
-    });
-
-    if (fadeContainerRef.current) {
-      resizeObserver.observe(fadeContainerRef.current);
-    }
-    if (descriptionRef.current) {
-      resizeObserver.observe(descriptionRef.current);
-    }
 
     return () => {
       clearTimeout(timeoutId);
