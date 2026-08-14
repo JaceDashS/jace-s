@@ -16,6 +16,7 @@ import { useWelcomeFlow } from '../hooks/useWelcomeFlow';
 import { useMainContentData } from '../hooks/useMainContentData';
 import { useMainContentRouteSync } from '../hooks/useMainContentRouteSync';
 import { useMainContentLanguage } from '../hooks/useMainContentLanguage';
+import { useDesktopPhotoCardFade } from '../hooks/useDesktopPhotoCardFade';
 import CardFront from './Card/CardFront';
 import CardBack from './Card/CardBack';
 import RightCardContent from './Card/RightCardContent';
@@ -31,7 +32,6 @@ const shouldLog = process.env.NEXT_PUBLIC_DEBUG_LOGS === 'true';
 const MAX_DESKTOP_WHEEL_SCROLL_SPEED_PX_PER_SECOND = 2000;
 const MIN_WHEEL_FRAME_MS = 16;
 const MAX_WHEEL_FRAME_MS = 50;
-const PHOTO_COVER_TRACKING_MS = 400;
 
 export default function MainContent() {
   // 상수들을 별도 파일에서 import하여 사용
@@ -68,9 +68,15 @@ export default function MainContent() {
   } = useCardState();
 
   const [isScrollingUp, setIsScrollingUp] = useState(false); // 스크롤 방향 추적
-  const [desktopPhotoCardFade, setDesktopPhotoCardFade] = useState(1);
   const leftCardRef = useRef<HTMLDivElement>(null);
   const rightCardRef = useRef<HTMLDivElement>(null);
+  const desktopPhotoCardFade = useDesktopPhotoCardFade({
+    leftCardRef,
+    rightCardRef,
+    isAnimating,
+    scrollProgress,
+    showContent,
+  });
   const { language, setLanguage } = useMainContentLanguage();
   const [selectedCertification, setSelectedCertification] = useState<string | null>(null); // 선택된 자격증 키 (null이면 홈 포토 표시)
   const [currentProjectPage, setCurrentProjectPage] = useState(1); // 프로젝트 페이지네이션 현재 페이지
@@ -440,45 +446,6 @@ export default function MainContent() {
 
   // 페이드 애니메이션 계산은 useFadeAnimation 훅 사용
   const { greetingFade, photoCardFade, appsFade } = useFadeAnimation(scrollProgress);
-
-  useEffect(() => {
-    if (!showContent || !isAnimating || !window.matchMedia('(min-width: 601px)').matches) {
-      return;
-    }
-
-    let frameId: number | null = null;
-    const trackingStartedAt = performance.now();
-
-    const updatePhotoAtActualCover = () => {
-      const leftCard = leftCardRef.current;
-      const rightCard = rightCardRef.current;
-      if (!leftCard || !rightCard) {
-        return;
-      }
-
-      const leftRect = leftCard.getBoundingClientRect();
-      const rightRect = rightCard.getBoundingClientRect();
-      const leftCenter = leftRect.left + leftRect.width / 2;
-      const rightCenter = rightRect.left + rightRect.width / 2;
-      const nextFade = leftCenter < rightCenter ? 1 : 0;
-
-      setDesktopPhotoCardFade((currentFade) => (
-        currentFade === nextFade ? currentFade : nextFade
-      ));
-
-      if (performance.now() - trackingStartedAt < PHOTO_COVER_TRACKING_MS) {
-        frameId = requestAnimationFrame(updatePhotoAtActualCover);
-      }
-    };
-
-    frameId = requestAnimationFrame(updatePhotoAtActualCover);
-
-    return () => {
-      if (frameId !== null) {
-        cancelAnimationFrame(frameId);
-      }
-    };
-  }, [isAnimating, scrollProgress, showContent]);
 
   const rightCardTransform = isAnimating
     ? `${getRightCardTransform(scrollProgress, hoverPhase)} ${selectedCertification ? 'rotateY(180deg)' : ''}`
