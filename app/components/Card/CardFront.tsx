@@ -1,73 +1,17 @@
 /**
  * 카드 앞면 컴포넌트
  */
-import { useState, useEffect, useLayoutEffect, useRef, useMemo } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import type { CSSProperties, MouseEvent } from 'react';
 import { PROJECTS_PER_PAGE } from '../../constants/gridConstants';
 import type { Language } from '../../types/mainContent';
 import type { App } from '../../types/app';
 import { useCardFrontLinks } from '../../hooks/useCardFrontLinks';
 import { useCardFrontPhotos } from '../../hooks/useCardFrontPhotos';
-import { BUTTON_MAX_FACTOR, CARD_WIDTH as BUTTON_CARD_WIDTH, BUTTON_PADDING, BUTTON_FONT, ICON_SIZE } from '../../constants/buttonConstants';
+import { useCardFrontResponsiveLayout } from '../../hooks/useCardFrontResponsiveLayout';
 import ImageWithLoader from '../ImageWithLoader';
 import AppItem from './AppItem';
 import styles from './CardFront.module.css';
-
-// 반응형 크기 설정 상수
-const RESPONSIVE_CONFIG = {
-  // 카드 너비 범위
-  CARD_WIDTH: {
-    MIN: 400,  // 최소 폰트/버튼 크기일 때의 카드 너비
-    MAX: 1200, // 최대 폰트/버튼 크기일 때의 카드 너비
-  },
-  // Greeting 폰트 크기
-  GREETING_FONT: {
-    FIT_MIN: 0.75,
-    COMPACT_MIN: 1,
-    COMPACT_MAX: 2,
-    MIN: 1.5,  // rem
-    MAX: 4.5,  // rem
-  },
-  // Description 폰트 크기
-  DESCRIPTION_FONT: {
-    FIT_MIN: 0.5,
-    COMPACT_MIN: 0.625,
-    COMPACT_MAX: 1.125,
-    MIN: 1,     // rem
-    MAX: 2, // rem
-  },
-  // 버튼 사이즈 배율은 buttonConstants.ts의 BUTTON_MAX_FACTOR를 사용합니다
-  // 큰 버튼 패딩은 buttonConstants.ts의 BUTTON_PADDING을 사용합니다
-  // 작은 버튼 패딩 (MAX 값에 BUTTON_MAX_FACTOR를 곱한 값이 최종 최대값)
-  CONTENT_FIT: {
-    ACTION_GAP_PX: 16,
-    CONTENT_GAP_PX: 10,
-    SEARCH_STEPS: 10,
-    TITLE_OFFSET_MAX_PX: 48,
-    PHOTO_GAP_PX: 16,
-    PHOTO_MIN_HEIGHT_PX: 96,
-    PHOTO_MAX_HEIGHT_PX: 208,
-    PHOTO_REMAINING_SPACE_PX: 24,
-    PHOTO_TWO_COUNT_HEIGHT_PX: 132,
-    PHOTO_THREE_COUNT_HEIGHT_PX: 184,
-  },
-  COMPACT_BUTTON_SCALE: {
-    MIN: 0.62,
-    WIDTH_REFERENCE_PX: 400,
-    HEIGHT_REFERENCE_PX: 520,
-  },
-  DESKTOP_HEIGHT_SCALE: {
-    MIN: 0.72,
-    REFERENCE_PX: 720,
-  },
-  SMALL_BUTTON_PADDING: {
-    MIN_PX: 4,
-    MAX_PX: 8,
-    MIN_PY: 2,
-    MAX_PY: 4,
-  },
-  // 버튼 폰트와 아이콘 크기는 buttonConstants.ts의 BUTTON_FONT, ICON_SIZE를 사용합니다
-} as const;
 
 // 패딩 관련 상수
 const PADDING_CONFIG = {
@@ -181,33 +125,31 @@ export default function CardFront({
       next: '下一页',
     },
   };
-  const [fontSize, setFontSize] = useState(
-    `${compactTypography ? RESPONSIVE_CONFIG.GREETING_FONT.COMPACT_MAX : RESPONSIVE_CONFIG.GREETING_FONT.MAX}rem`
-  );
-  const [descriptionFontSize, setDescriptionFontSize] = useState(
-    `${compactTypography ? RESPONSIVE_CONFIG.DESCRIPTION_FONT.COMPACT_MAX : RESPONSIVE_CONFIG.DESCRIPTION_FONT.MAX}rem`
-  );
-  // BUTTON_MAX_FACTOR를 적용한 초기 최대값 계산
-  const initialButtonMaxPx = BUTTON_PADDING.MAX_PX * BUTTON_MAX_FACTOR;
-  const initialButtonMaxPy = BUTTON_PADDING.MAX_PY * BUTTON_MAX_FACTOR;
-  const initialSmallMaxPx = RESPONSIVE_CONFIG.SMALL_BUTTON_PADDING.MAX_PX * BUTTON_MAX_FACTOR;
-  const initialSmallMaxPy = RESPONSIVE_CONFIG.SMALL_BUTTON_PADDING.MAX_PY * BUTTON_MAX_FACTOR;
-  const initialButtonFontMax = BUTTON_FONT.MAX * BUTTON_MAX_FACTOR;
-  const initialIconSizeMax = ICON_SIZE.MAX * BUTTON_MAX_FACTOR;
-  
-  const [buttonPadding, setButtonPadding] = useState<{ px: number; py: number }>({ 
-    px: initialButtonMaxPx, 
-    py: initialButtonMaxPy 
-  });
-  const [smallButtonPadding, setSmallButtonPadding] = useState<{ px: number; py: number }>({ 
-    px: initialSmallMaxPx, 
-    py: initialSmallMaxPy 
-  });
-  const [buttonFontSize, setButtonFontSize] = useState(`${initialButtonFontMax}rem`);
-  const [iconSize, setIconSize] = useState(`${initialIconSizeMax}rem`);
   const [emailCopied, setEmailCopied] = useState(false);
   const [expandedAppId, setExpandedAppId] = useState<number | null>(null);
-  const [homePhotoLayout, setHomePhotoLayout] = useState({ height: 0, count: 0 });
+  const {
+    fontSize,
+    descriptionFontSize,
+    buttonPadding,
+    smallButtonPadding,
+    buttonFontSize,
+    iconSize,
+    homePhotoLayout,
+  } = useCardFrontResponsiveLayout({
+    containerRef,
+    fadeContainerRef,
+    descriptionRef,
+    buttonGroupRef,
+    greetingClassName: styles.greetingText,
+    compactTypography,
+    greetingText,
+    isCompactHome,
+    language,
+    layoutActive,
+    nameSuffix,
+    profileDescription,
+    profileName,
+  });
   const homePhotos = useCardFrontPhotos({
     isCompactHome,
     photoCount: homePhotoLayout.count,
@@ -270,336 +212,6 @@ export default function CardFront({
       );
     });
   }, [profileDescription, profileLinks, compositionUrl, guitarUrl]);
-
-  // 카드 너비에 따라 폰트 크기 및 버튼 크기 조정
-  useLayoutEffect(() => {
-    const updateSizes = () => {
-      if (!containerRef.current) return;
-      
-      const containerWidth = containerRef.current.offsetWidth;
-      const containerHeight = containerRef.current.offsetHeight;
-      const { MIN: minWidth, MAX: maxWidth } = RESPONSIVE_CONFIG.CARD_WIDTH;
-      const { MIN: buttonMinWidth, MAX: buttonMaxWidth } = BUTTON_CARD_WIDTH;
-      
-      // 선형 보간 헬퍼 함수
-      const interpolate = (min: number, max: number, width: number): number => {
-        if (width <= minWidth) return min;
-        if (width >= maxWidth) return max;
-        const ratio = (width - minWidth) / (maxWidth - minWidth);
-        return min + (max - min) * ratio;
-      };
-
-      let greetingSizeRem = interpolate(
-        RESPONSIVE_CONFIG.GREETING_FONT.MIN,
-        RESPONSIVE_CONFIG.GREETING_FONT.MAX,
-        containerWidth
-      );
-      let descSizeRem = interpolate(
-        RESPONSIVE_CONFIG.DESCRIPTION_FONT.MIN,
-        RESPONSIVE_CONFIG.DESCRIPTION_FONT.MAX,
-        containerWidth
-      );
-      const desktopHeightScale = compactTypography
-        ? 1
-        : Math.max(
-            RESPONSIVE_CONFIG.DESKTOP_HEIGHT_SCALE.MIN,
-            Math.min(
-              1,
-              containerHeight / RESPONSIVE_CONFIG.DESKTOP_HEIGHT_SCALE.REFERENCE_PX
-            )
-          );
-
-      if (!compactTypography) {
-        greetingSizeRem = Math.max(
-          RESPONSIVE_CONFIG.GREETING_FONT.MIN,
-          greetingSizeRem * desktopHeightScale
-        );
-        descSizeRem = Math.max(
-          RESPONSIVE_CONFIG.DESCRIPTION_FONT.MIN,
-          descSizeRem * desktopHeightScale
-        );
-      }
-
-      if (compactTypography) {
-        const fadeContainer = fadeContainerRef.current;
-        const greetingElement = fadeContainer?.querySelector<HTMLElement>(`.${styles.greetingText}`);
-        const descriptionElement = descriptionRef.current;
-        const descriptionContainer = descriptionElement?.parentElement;
-        const buttonGroup = buttonGroupRef.current;
-
-        greetingSizeRem = RESPONSIVE_CONFIG.GREETING_FONT.COMPACT_MIN;
-        descSizeRem = RESPONSIVE_CONFIG.DESCRIPTION_FONT.COMPACT_MIN;
-
-        if (fadeContainer && greetingElement) {
-          const fadeRect = fadeContainer.getBoundingClientRect();
-          const buttonRect = buttonGroup?.getBoundingClientRect();
-          const actionReserve = buttonRect
-            ? Math.max(
-                0,
-                fadeRect.bottom - buttonRect.top + RESPONSIVE_CONFIG.CONTENT_FIT.ACTION_GAP_PX
-              )
-            : 0;
-
-          fadeContainer.style.setProperty('--home-actions-reserve', `${actionReserve}px`);
-          fadeContainer.style.setProperty('--home-title-offset', '0px');
-
-          const previousGreetingSize = greetingElement.style.fontSize;
-          const previousDescriptionSize = descriptionElement?.style.fontSize ?? '';
-          const getPreferredCandidateSizes = (ratio: number) => ({
-            greeting:
-              RESPONSIVE_CONFIG.GREETING_FONT.COMPACT_MIN +
-              (RESPONSIVE_CONFIG.GREETING_FONT.COMPACT_MAX -
-                RESPONSIVE_CONFIG.GREETING_FONT.COMPACT_MIN) * ratio,
-            description:
-              RESPONSIVE_CONFIG.DESCRIPTION_FONT.COMPACT_MIN +
-              (RESPONSIVE_CONFIG.DESCRIPTION_FONT.COMPACT_MAX -
-                RESPONSIVE_CONFIG.DESCRIPTION_FONT.COMPACT_MIN) * ratio,
-          });
-          const getEmergencyCandidateSizes = (ratio: number) => ({
-            greeting:
-              RESPONSIVE_CONFIG.GREETING_FONT.FIT_MIN +
-              (RESPONSIVE_CONFIG.GREETING_FONT.COMPACT_MIN -
-                RESPONSIVE_CONFIG.GREETING_FONT.FIT_MIN) * ratio,
-            description:
-              RESPONSIVE_CONFIG.DESCRIPTION_FONT.FIT_MIN +
-              (RESPONSIVE_CONFIG.DESCRIPTION_FONT.COMPACT_MIN -
-                RESPONSIVE_CONFIG.DESCRIPTION_FONT.FIT_MIN) * ratio,
-          });
-          const candidateFits = (candidate: { greeting: number; description: number }) => {
-            greetingElement.style.fontSize = `${candidate.greeting}rem`;
-            if (descriptionElement) {
-              descriptionElement.style.fontSize = `${candidate.description}rem`;
-            }
-
-            const greetingFits =
-              greetingElement.getBoundingClientRect().bottom <=
-              fadeContainer.getBoundingClientRect().bottom - actionReserve + 1;
-            const descriptionFits =
-              !descriptionElement ||
-              !descriptionContainer ||
-              descriptionElement.scrollHeight <= descriptionContainer.clientHeight + 1;
-
-            return greetingFits && descriptionFits;
-          };
-
-          const findLargestFittingCandidate = (
-            getCandidateSizes: (ratio: number) => { greeting: number; description: number }
-          ) => {
-            const smallestCandidate = getCandidateSizes(0);
-            if (!candidateFits(smallestCandidate)) {
-              return smallestCandidate;
-            }
-
-            const largestCandidate = getCandidateSizes(1);
-            if (candidateFits(largestCandidate)) {
-              return largestCandidate;
-            }
-
-            let lowerRatio = 0;
-            let upperRatio = 1;
-
-            for (let step = 0; step < RESPONSIVE_CONFIG.CONTENT_FIT.SEARCH_STEPS; step += 1) {
-              const candidateRatio = (lowerRatio + upperRatio) / 2;
-              if (candidateFits(getCandidateSizes(candidateRatio))) {
-                lowerRatio = candidateRatio;
-              } else {
-                upperRatio = candidateRatio;
-              }
-            }
-
-            return getCandidateSizes(lowerRatio);
-          };
-
-          const preferredMinimum = getPreferredCandidateSizes(0);
-          const fittedSizes = candidateFits(preferredMinimum)
-            ? findLargestFittingCandidate(getPreferredCandidateSizes)
-            : findLargestFittingCandidate(getEmergencyCandidateSizes);
-          greetingSizeRem = fittedSizes.greeting;
-          descSizeRem = fittedSizes.description;
-          candidateFits(fittedSizes);
-
-          const contentGap = descriptionElement
-            ? RESPONSIVE_CONFIG.CONTENT_FIT.CONTENT_GAP_PX
-            : 0;
-          const safeContentHeight = fadeContainer.clientHeight - actionReserve;
-          const naturalContentHeight =
-            greetingElement.getBoundingClientRect().height +
-            (descriptionElement?.scrollHeight ?? 0) +
-            contentGap;
-          const emptyContentHeight = Math.max(0, safeContentHeight - naturalContentHeight);
-          const availablePhotoHeight = Math.floor(
-            emptyContentHeight -
-            RESPONSIVE_CONFIG.CONTENT_FIT.PHOTO_GAP_PX -
-            RESPONSIVE_CONFIG.CONTENT_FIT.PHOTO_REMAINING_SPACE_PX
-          );
-          const nextPhotoHeight = isCompactHome &&
-            availablePhotoHeight >= RESPONSIVE_CONFIG.CONTENT_FIT.PHOTO_MIN_HEIGHT_PX
-            ? Math.min(
-                availablePhotoHeight,
-                RESPONSIVE_CONFIG.CONTENT_FIT.PHOTO_MAX_HEIGHT_PX
-              )
-            : 0;
-          const nextPhotoCount = nextPhotoHeight >=
-            RESPONSIVE_CONFIG.CONTENT_FIT.PHOTO_THREE_COUNT_HEIGHT_PX
-            ? 3
-            : nextPhotoHeight >= RESPONSIVE_CONFIG.CONTENT_FIT.PHOTO_TWO_COUNT_HEIGHT_PX
-              ? 2
-              : nextPhotoHeight > 0
-                ? 1
-                : 0;
-
-          setHomePhotoLayout((currentLayout) => {
-            if (
-              currentLayout.height === nextPhotoHeight &&
-              currentLayout.count === nextPhotoCount
-            ) {
-              return currentLayout;
-            }
-
-            return { height: nextPhotoHeight, count: nextPhotoCount };
-          });
-
-          const photoReserve = nextPhotoHeight > 0
-            ? nextPhotoHeight + RESPONSIVE_CONFIG.CONTENT_FIT.PHOTO_GAP_PX
-            : 0;
-          const availableTitleOffset = Math.max(
-            0,
-            (safeContentHeight - naturalContentHeight - photoReserve) / 2
-          );
-          const titleOffset = Math.min(
-            availableTitleOffset,
-            RESPONSIVE_CONFIG.CONTENT_FIT.TITLE_OFFSET_MAX_PX
-          );
-          fadeContainer.style.setProperty('--home-title-offset', `${titleOffset}px`);
-
-          greetingElement.style.fontSize = previousGreetingSize;
-          if (descriptionElement) {
-            descriptionElement.style.fontSize = previousDescriptionSize;
-          }
-        }
-      }
-
-      const greetingSize = `${greetingSizeRem}rem`;
-      const descSize = `${descSizeRem}rem`;
-      
-      // BUTTON_MAX_FACTOR를 적용한 최대값 계산
-      const buttonMaxPx = BUTTON_PADDING.MAX_PX * BUTTON_MAX_FACTOR;
-      const buttonMaxPy = BUTTON_PADDING.MAX_PY * BUTTON_MAX_FACTOR;
-      const smallMaxPx = RESPONSIVE_CONFIG.SMALL_BUTTON_PADDING.MAX_PX * BUTTON_MAX_FACTOR;
-      const smallMaxPy = RESPONSIVE_CONFIG.SMALL_BUTTON_PADDING.MAX_PY * BUTTON_MAX_FACTOR;
-      const buttonFontMax = BUTTON_FONT.MAX * BUTTON_MAX_FACTOR;
-      const iconSizeMax = ICON_SIZE.MAX * BUTTON_MAX_FACTOR;
-      
-      // 버튼 크기 계산용 선형 보간 함수 (카드 너비 기준)
-      const buttonInterpolate = (min: number, max: number, width: number): number => {
-        if (width <= buttonMinWidth) return min;
-        if (width >= buttonMaxWidth) return max;
-        const ratio = (width - buttonMinWidth) / (buttonMaxWidth - buttonMinWidth);
-        return min + (max - min) * ratio;
-      };
-      const controlScale = compactTypography
-        ? Math.max(
-            RESPONSIVE_CONFIG.COMPACT_BUTTON_SCALE.MIN,
-            Math.min(
-              1,
-              containerWidth / RESPONSIVE_CONFIG.COMPACT_BUTTON_SCALE.WIDTH_REFERENCE_PX,
-              containerHeight / RESPONSIVE_CONFIG.COMPACT_BUTTON_SCALE.HEIGHT_REFERENCE_PX
-            )
-          )
-        : desktopHeightScale;
-      const scaleControl = (value: number, minimum: number) => compactTypography
-        ? value * controlScale
-        : Math.max(minimum, value * controlScale);
-      
-      // 큰 버튼 패딩
-      const buttonPx = scaleControl(
-        buttonInterpolate(BUTTON_PADDING.MIN_PX, buttonMaxPx, containerWidth),
-        BUTTON_PADDING.MIN_PX
-      );
-      const buttonPy = scaleControl(
-        buttonInterpolate(BUTTON_PADDING.MIN_PY, buttonMaxPy, containerWidth),
-        BUTTON_PADDING.MIN_PY
-      );
-      
-      // 작은 버튼 패딩
-      const smallPx = scaleControl(
-        buttonInterpolate(
-          RESPONSIVE_CONFIG.SMALL_BUTTON_PADDING.MIN_PX,
-          smallMaxPx,
-          containerWidth
-        ),
-        RESPONSIVE_CONFIG.SMALL_BUTTON_PADDING.MIN_PX
-      );
-      const smallPy = scaleControl(
-        buttonInterpolate(
-          RESPONSIVE_CONFIG.SMALL_BUTTON_PADDING.MIN_PY,
-          smallMaxPy,
-          containerWidth
-        ),
-        RESPONSIVE_CONFIG.SMALL_BUTTON_PADDING.MIN_PY
-      );
-      
-      // 버튼 폰트 크기
-      const buttonFontSizeRem = scaleControl(
-        buttonInterpolate(BUTTON_FONT.MIN, buttonFontMax, containerWidth),
-        BUTTON_FONT.MIN
-      );
-      const newButtonFontSize = buttonFontSizeRem + 'rem';
-      
-      // 아이콘 크기
-      const iconSizeRem = scaleControl(
-        buttonInterpolate(ICON_SIZE.MIN, iconSizeMax, containerWidth),
-        ICON_SIZE.MIN
-      );
-      const newIconSize = iconSizeRem + 'rem';
-      
-      setFontSize(greetingSize);
-      setDescriptionFontSize(descSize);
-      setButtonPadding({ px: buttonPx, py: buttonPy });
-      setSmallButtonPadding({ px: smallPx, py: smallPy });
-      setButtonFontSize(newButtonFontSize);
-      setIconSize(newIconSize);
-    };
-
-    updateSizes();
-    
-    const resizeObserver = new ResizeObserver(() => {
-      updateSizes();
-    });
-    let refreshFrameId: number | null = null;
-    const refreshRestoredLayout = () => {
-      if (refreshFrameId !== null) {
-        window.cancelAnimationFrame(refreshFrameId);
-      }
-      refreshFrameId = window.requestAnimationFrame(() => {
-        refreshFrameId = null;
-        updateSizes();
-      });
-    };
-    
-    if (containerRef.current) {
-      resizeObserver.observe(containerRef.current);
-    }
-    if (fadeContainerRef.current) {
-      resizeObserver.observe(fadeContainerRef.current);
-    }
-    if (buttonGroupRef.current) {
-      resizeObserver.observe(buttonGroupRef.current);
-    }
-    window.addEventListener('pageshow', refreshRestoredLayout);
-    window.addEventListener('orientationchange', refreshRestoredLayout);
-    window.visualViewport?.addEventListener('resize', refreshRestoredLayout);
-
-    return () => {
-      if (refreshFrameId !== null) {
-        window.cancelAnimationFrame(refreshFrameId);
-      }
-      resizeObserver.disconnect();
-      window.removeEventListener('pageshow', refreshRestoredLayout);
-      window.removeEventListener('orientationchange', refreshRestoredLayout);
-      window.visualViewport?.removeEventListener('resize', refreshRestoredLayout);
-    };
-  }, [compactTypography, greetingText, isCompactHome, language, layoutActive, nameSuffix, profileDescription, profileName]);
 
   // 패딩 동적 계산 (상단/하단 패딩 조정)
   useEffect(() => {
