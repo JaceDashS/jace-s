@@ -363,21 +363,6 @@
   display: none;
 }
 
-@media (min-width: 601px) and (max-height: 480px) {
-  .cardContainer {
-    padding: clamp(0.5rem, 2vh, 1.25rem);
-  }
-
-  .buttonGroup {
-    gap: clamp(0.25rem, 1vw, 0.75rem);
-    padding: clamp(0.35rem, 2vh, 0.75rem);
-  }
-
-  .socialButtonRow {
-    gap: clamp(0.2rem, 0.8vw, 0.5rem);
-  }
-}
-
 /* 뷰포트 너비가 1400px 이상일 때 버튼 텍스트 표시 */
 @media (min-width: 1400px) {
   .buttonText {
