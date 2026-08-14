@@ -1,0 +1,54 @@
+.screen {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.25rem;
+  background:
+    radial-gradient(circle at 75% 10%, rgba(147, 51, 234, 0.2), transparent 38%),
+    rgb(15 23 42);
+  color: white;
+  text-align: center;
+  font-family: ui-sans-serif, system-ui, sans-serif;
+}
+
+.panel {
+  width: min(100%, 28rem);
+  padding: clamp(1.5rem, 7vw, 3rem) clamp(1.25rem, 6vw, 2.5rem);
+  border: 1px solid rgba(196, 181, 253, 0.28);
+  border-radius: 1.25rem;
+  background: rgba(30, 41, 59, 0.72);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.32);
+  backdrop-filter: blur(12px);
+}
+
+.eyebrow {
+  color: rgb(196 181 253);
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+}
+
+.title {
+  margin: 1rem 0 0;
+  font-family: ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
+  font-size: clamp(1.25rem, 5vw, 2rem);
+  line-height: 1.15;
+}
+
+.description {
+  margin: 0.75rem 0 0;
+  color: rgba(255, 255, 255, 0.78);
+  font-size: clamp(0.8rem, 3vw, 1rem);
+  line-height: 1.5;
+}
+
+.hint {
+  display: inline-block;
+  margin-top: 1.25rem;
+  color: rgba(196, 181, 253, 0.9);
+  font-size: 0.75rem;
+  font-weight: 600;
+}

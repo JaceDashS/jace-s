@@ -18,6 +18,7 @@ const RESPONSIVE_CONFIG = {
     FIT_MIN: 0.75,
     COMPACT_MIN: 1,
     COMPACT_MAX: 2,
+    SHORT_MIN: 0.75,
     MIN: 1.5,
     MAX: 4.5,
   },
@@ -25,6 +26,7 @@ const RESPONSIVE_CONFIG = {
     FIT_MIN: 0.5,
     COMPACT_MIN: 0.625,
     COMPACT_MAX: 1.125,
+    SHORT_MIN: 0.6,
     MIN: 1,
     MAX: 2,
   },
@@ -47,6 +49,8 @@ const RESPONSIVE_CONFIG = {
   },
   DESKTOP_HEIGHT_SCALE: {
     MIN: 0.72,
+    SHORT_MIN: 0.42,
+    SHORT_HEIGHT_PX: 480,
     REFERENCE_PX: 720,
   },
   SMALL_BUTTON_PADDING: {
@@ -149,10 +153,14 @@ export function useCardFrontResponsiveLayout({
         RESPONSIVE_CONFIG.DESCRIPTION_FONT.MAX,
         containerWidth
       );
+      const isShortDesktop = !compactTypography &&
+        containerHeight < RESPONSIVE_CONFIG.DESKTOP_HEIGHT_SCALE.SHORT_HEIGHT_PX;
       const desktopHeightScale = compactTypography
         ? 1
         : Math.max(
-            RESPONSIVE_CONFIG.DESKTOP_HEIGHT_SCALE.MIN,
+            isShortDesktop
+              ? RESPONSIVE_CONFIG.DESKTOP_HEIGHT_SCALE.SHORT_MIN
+              : RESPONSIVE_CONFIG.DESKTOP_HEIGHT_SCALE.MIN,
             Math.min(
               1,
               containerHeight / RESPONSIVE_CONFIG.DESKTOP_HEIGHT_SCALE.REFERENCE_PX
@@ -161,11 +169,15 @@ export function useCardFrontResponsiveLayout({
 
       if (!compactTypography) {
         greetingSizeRem = Math.max(
-          RESPONSIVE_CONFIG.GREETING_FONT.MIN,
+          isShortDesktop
+            ? RESPONSIVE_CONFIG.GREETING_FONT.SHORT_MIN
+            : RESPONSIVE_CONFIG.GREETING_FONT.MIN,
           greetingSizeRem * desktopHeightScale
         );
         descSizeRem = Math.max(
-          RESPONSIVE_CONFIG.DESCRIPTION_FONT.MIN,
+          isShortDesktop
+            ? RESPONSIVE_CONFIG.DESCRIPTION_FONT.SHORT_MIN
+            : RESPONSIVE_CONFIG.DESCRIPTION_FONT.MIN,
           descSizeRem * desktopHeightScale
         );
       }
@@ -354,19 +366,26 @@ export function useCardFrontResponsiveLayout({
             )
           )
         : desktopHeightScale;
+      const desktopControlMinimumScale = isShortDesktop
+        ? 0.6
+        : 1;
+      const desktopPaddingMinimumScale = isShortDesktop ? 0.35 : 1;
       const scaleControl = (value: number, minimum: number) => compactTypography
         ? value * controlScale
-        : Math.max(minimum, value * controlScale);
+        : Math.max(minimum * desktopControlMinimumScale, value * controlScale);
+      const scalePadding = (value: number, minimum: number) => compactTypography
+        ? value * controlScale
+        : Math.max(minimum * desktopPaddingMinimumScale, value * controlScale);
 
-      const buttonPx = scaleControl(
+      const buttonPx = scalePadding(
         buttonInterpolate(BUTTON_PADDING.MIN_PX, buttonMaxPx, containerWidth),
         BUTTON_PADDING.MIN_PX
       );
-      const buttonPy = scaleControl(
+      const buttonPy = scalePadding(
         buttonInterpolate(BUTTON_PADDING.MIN_PY, buttonMaxPy, containerWidth),
         BUTTON_PADDING.MIN_PY
       );
-      const smallPx = scaleControl(
+      const smallPx = scalePadding(
         buttonInterpolate(
           RESPONSIVE_CONFIG.SMALL_BUTTON_PADDING.MIN_PX,
           smallMaxPx,
@@ -374,7 +393,7 @@ export function useCardFrontResponsiveLayout({
         ),
         RESPONSIVE_CONFIG.SMALL_BUTTON_PADDING.MIN_PX
       );
-      const smallPy = scaleControl(
+      const smallPy = scalePadding(
         buttonInterpolate(
           RESPONSIVE_CONFIG.SMALL_BUTTON_PADDING.MIN_PY,
           smallMaxPy,

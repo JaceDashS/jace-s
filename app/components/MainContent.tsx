@@ -5,6 +5,7 @@ import type { CSSProperties } from 'react';
 import { usePathname } from 'next/navigation';
 import WelcomeScreen from './WelcomeScreen';
 import MobileContent from './MobileContent';
+import ShortViewportScreen from './ShortViewportScreen';
 
 // 상수 import
 import { CARD_SCALE, CARD_Z_INDEX } from '../constants/cardConstants';
@@ -17,6 +18,7 @@ import { useMainContentData } from '../hooks/useMainContentData';
 import { useMainContentRouteSync } from '../hooks/useMainContentRouteSync';
 import { useMainContentLanguage } from '../hooks/useMainContentLanguage';
 import { useDesktopPhotoCardFade } from '../hooks/useDesktopPhotoCardFade';
+import useMediaQuery from '../hooks/useMediaQuery';
 import CardFront from './Card/CardFront';
 import CardBack from './Card/CardBack';
 import RightCardContent from './Card/RightCardContent';
@@ -32,6 +34,7 @@ const shouldLog = process.env.NEXT_PUBLIC_DEBUG_LOGS === 'true';
 const MAX_DESKTOP_WHEEL_SCROLL_SPEED_PX_PER_SECOND = 2000;
 const MIN_WHEEL_FRAME_MS = 16;
 const MAX_WHEEL_FRAME_MS = 50;
+const SHORT_VIEWPORT_MEDIA_QUERY = '(max-height: 499.5px)';
 
 export default function MainContent() {
   // 상수들을 별도 파일에서 import하여 사용
@@ -42,6 +45,7 @@ export default function MainContent() {
     welcomeMode,
     handleWelcomeComplete,
   } = useWelcomeFlow();
+  const isShortViewport = useMediaQuery(SHORT_VIEWPORT_MEDIA_QUERY);
   const [scrollProgress, setScrollProgress] = useState(0);
   // 카드 상태는 useCardState 훅으로 관리
   const {
@@ -462,10 +466,11 @@ export default function MainContent() {
         />
       )}
       <div
+        aria-hidden={isShortViewport}
         className="desktop-experience desktop-background min-h-[300vh]"
         style={{
-          opacity: showContent ? 1 : 0,
-          pointerEvents: showContent ? 'auto' : 'none',
+          opacity: isShortViewport ? 0 : showContent ? 1 : 0,
+          pointerEvents: isShortViewport ? 'none' : showContent ? 'auto' : 'none',
         }}
       >
           <span className={`desktop-brand fixed left-8 top-8 z-50 transition-all duration-1000 ease-out ${
@@ -618,9 +623,15 @@ export default function MainContent() {
             }`}
           >
             {/* 세로 상태선 - 왼쪽 고정 (1번~4번 마커) */}
-            <div className="fixed left-8 top-1/2 -translate-y-1/2 z-50 flex flex-col items-center gap-3">
+            <div
+              className="desktop-navigation fixed left-8 top-1/2 -translate-y-1/2 z-50 flex flex-col items-center gap-3"
+              style={{ gap: 'clamp(0.25rem, 1.5vh, 0.75rem)' }}
+            >
               {/* 1번 마커 */}
-              <div className="flex flex-col items-center gap-2">
+              <div
+                className="desktop-navigation-item flex flex-col items-center gap-2"
+                style={{ gap: 'clamp(0.25rem, 1vh, 0.5rem)' }}
+              >
                 <button
                   onClick={() => {
                     const windowHeight = window.innerHeight;
@@ -629,20 +640,37 @@ export default function MainContent() {
                       behavior: 'smooth',
                     });
                   }}
-                  className={`h-3 rounded-full transition-all duration-300 cursor-pointer ${
+                  className={`desktop-navigation-button h-3 rounded-full transition-all duration-300 cursor-pointer ${
                     scrollProgress === 0
                       ? 'bg-purple-600 w-9'
                       : scrollProgress > 0
                       ? 'bg-purple-400 w-3'
                       : 'bg-slate-600 w-3'
                   }`}
+                  style={{
+                    height: 'clamp(0.35rem, 1.6vh, 0.75rem)',
+                    width: scrollProgress === 0
+                      ? 'clamp(1.5rem, 4.5vh, 2.25rem)'
+                      : 'clamp(0.35rem, 1.6vh, 0.75rem)',
+                  }}
                   aria-label="Home"
                 />
-                <span className="text-xs text-white/80 whitespace-nowrap">home</span>
+                <span
+                  className="desktop-navigation-label text-xs text-white/80 whitespace-nowrap"
+                  style={{ fontSize: 'clamp(0.55rem, 1.7vh, 0.75rem)' }}
+                >
+                  home
+                </span>
               </div>
 
               {/* 진행 바 (1번~2번 사이) */}
-              <div className="w-1 h-32 bg-slate-700/50 relative overflow-hidden rounded-full">
+              <div
+                className="desktop-navigation-progress w-1 h-32 bg-slate-700/50 relative overflow-hidden rounded-full"
+                style={{
+                  width: 'clamp(0.18rem, 0.35vh, 0.25rem)',
+                  height: 'clamp(2rem, 18vh, 8rem)',
+                }}
+              >
                 <div
                   className="absolute top-0 left-0 w-full bg-purple-600 transition-all duration-300 ease-out rounded-full"
                   style={{
@@ -652,7 +680,10 @@ export default function MainContent() {
               </div>
 
               {/* 2번 마커 */}
-              <div className="flex flex-col items-center gap-2">
+              <div
+                className="desktop-navigation-item flex flex-col items-center gap-2"
+                style={{ gap: 'clamp(0.25rem, 1vh, 0.5rem)' }}
+              >
                 <button
                   onClick={() => {
                     const windowHeight = window.innerHeight;
@@ -661,20 +692,37 @@ export default function MainContent() {
                       behavior: 'smooth',
                     });
                   }}
-                  className={`h-3 rounded-full transition-all duration-300 cursor-pointer ${
+                  className={`desktop-navigation-button h-3 rounded-full transition-all duration-300 cursor-pointer ${
                     scrollProgress >= 1 && scrollProgress < 2
                       ? 'bg-purple-600 w-9'
                       : scrollProgress >= 2
                       ? 'bg-purple-400 w-3'
                       : 'bg-slate-600 w-3'
                   }`}
+                  style={{
+                    height: 'clamp(0.35rem, 1.6vh, 0.75rem)',
+                    width: scrollProgress >= 1 && scrollProgress < 2
+                      ? 'clamp(1.5rem, 4.5vh, 2.25rem)'
+                      : 'clamp(0.35rem, 1.6vh, 0.75rem)',
+                  }}
                   aria-label="Apps"
                 />
-                <span className="text-xs text-white/80 whitespace-nowrap">apps</span>
+                <span
+                  className="desktop-navigation-label text-xs text-white/80 whitespace-nowrap"
+                  style={{ fontSize: 'clamp(0.55rem, 1.7vh, 0.75rem)' }}
+                >
+                  apps
+                </span>
               </div>
 
               {/* 진행 바 (2번~4번 사이) */}
-              <div className="w-1 h-32 bg-slate-700/50 relative overflow-hidden rounded-full">
+              <div
+                className="desktop-navigation-progress w-1 h-32 bg-slate-700/50 relative overflow-hidden rounded-full"
+                style={{
+                  width: 'clamp(0.18rem, 0.35vh, 0.25rem)',
+                  height: 'clamp(2rem, 18vh, 8rem)',
+                }}
+              >
                 <div
                   className="absolute top-0 left-0 w-full bg-purple-600 transition-all duration-300 ease-out rounded-full"
                   style={{
@@ -688,7 +736,10 @@ export default function MainContent() {
               </div>
 
               {/* 4번 마커 */}
-              <div className="flex flex-col items-center gap-2">
+              <div
+                className="desktop-navigation-item flex flex-col items-center gap-2"
+                style={{ gap: 'clamp(0.25rem, 1vh, 0.5rem)' }}
+              >
                 <button
                   onClick={() => {
                     const windowHeight = window.innerHeight;
@@ -697,14 +748,25 @@ export default function MainContent() {
                       behavior: 'smooth',
                     });
                   }}
-                  className={`h-3 rounded-full transition-all duration-300 cursor-pointer ${
+                  className={`desktop-navigation-button h-3 rounded-full transition-all duration-300 cursor-pointer ${
                     scrollProgress >= 3
                       ? 'bg-purple-600 w-9'
                       : 'bg-slate-600 w-3'
                   }`}
+                  style={{
+                    height: 'clamp(0.35rem, 1.6vh, 0.75rem)',
+                    width: scrollProgress >= 3
+                      ? 'clamp(1.5rem, 4.5vh, 2.25rem)'
+                      : 'clamp(0.35rem, 1.6vh, 0.75rem)',
+                  }}
                   aria-label="Comment"
                 />
-                <span className="text-xs text-white/80 whitespace-nowrap">comments</span>
+                <span
+                  className="desktop-navigation-label text-xs text-white/80 whitespace-nowrap"
+                  style={{ fontSize: 'clamp(0.55rem, 1.7vh, 0.75rem)' }}
+                >
+                  comments
+                </span>
               </div>
             </div>
 
@@ -965,7 +1027,8 @@ export default function MainContent() {
           </div>
         </div>
       <MobileContent
-        visible={showContent}
+        visible={showContent && !isShortViewport}
+        isViewportBlocked={isShortViewport}
         apps={apps}
         currentProjectPage={currentProjectPage}
         setCurrentProjectPage={setCurrentProjectPage}
@@ -978,6 +1041,7 @@ export default function MainContent() {
         greetingText={greetingText[language]}
         nameSuffix={nameSuffix[language]}
       />
+      {isShortViewport && <ShortViewportScreen language={language} />}
     </>
   );
 }

@@ -70,7 +70,9 @@ body {
 }
 
 .desktop-card-stage {
-  height: min(90vh, calc(75vw - 1.5rem));
+  width: min(100%, 270vh, 150vw, calc(225vw - 4.5rem));
+  height: min(90vh, calc(75vw - 1.5rem), 50vw);
+  margin-inline: auto;
 }
 
 .desktop-photo-card {

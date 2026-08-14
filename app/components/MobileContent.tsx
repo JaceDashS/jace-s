@@ -13,6 +13,7 @@ import styles from './MobileContent.module.css';
 
 interface MobileContentProps {
   visible: boolean;
+  isViewportBlocked: boolean;
   apps: App[];
   currentProjectPage: number;
   setCurrentProjectPage: (page: number | ((prev: number) => number)) => void;
@@ -101,6 +102,7 @@ const mobileUiCopy: Record<Language, {
 
 export default function MobileContent({
   visible,
+  isViewportBlocked,
   apps,
   currentProjectPage,
   setCurrentProjectPage,
@@ -183,7 +185,12 @@ export default function MobileContent({
   };
 
   return (
-    <section className={styles.mobileExperience} data-visible={visible} aria-label={uiCopy.portfolioLabel}>
+    <section
+      className={styles.mobileExperience}
+      data-visible={visible}
+      aria-hidden={isViewportBlocked}
+      aria-label={uiCopy.portfolioLabel}
+    >
       <header className={styles.header}>
         <span className={styles.eyebrow}>JACE-S</span>
         <select
