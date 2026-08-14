@@ -127,6 +127,7 @@ export default function MobileContent({
     nextHomeFace,
     isCertificateMounted,
     showSwipeCoachMark,
+    dismissSwipeCoachMark,
     isCardMounted,
     goToCard,
     flipHomeFace,
@@ -210,7 +211,7 @@ export default function MobileContent({
           className={styles.languageSelect}
           value={language}
           onChange={(event) => {
-            setShowSwipeCoachMark(false);
+            dismissSwipeCoachMark();
             setLanguage(event.target.value as Language);
           }}
           aria-label={uiCopy.languageSelector}

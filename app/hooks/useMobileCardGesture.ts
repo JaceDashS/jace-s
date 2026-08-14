@@ -29,6 +29,7 @@ export interface MobileCardGestureState {
   nextHomeFace: HomeFace | null;
   isCertificateMounted: boolean;
   showSwipeCoachMark: boolean;
+  dismissSwipeCoachMark: () => void;
   isCardMounted: (index: number) => boolean;
   goToCard: (index: number) => void;
   flipHomeFace: (target: HomeFace) => void;
@@ -70,6 +71,9 @@ export function useMobileCardGesture({
   const [isCertificateMounted, setIsCertificateMounted] = useState(false);
   const [nextHomeFace, setNextHomeFace] = useState<HomeFace | null>(null);
   const [showSwipeCoachMark, setShowSwipeCoachMark] = useState(false);
+  const dismissSwipeCoachMark = () => {
+    setShowSwipeCoachMark(false);
+  };
   const flipStateSnapshotRef = useRef({
     activeCard,
     nextCard,
@@ -521,6 +525,7 @@ export function useMobileCardGesture({
     nextHomeFace,
     isCertificateMounted,
     showSwipeCoachMark,
+    dismissSwipeCoachMark,
     isCardMounted,
     goToCard,
     flipHomeFace,
