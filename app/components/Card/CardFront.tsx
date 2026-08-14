@@ -2,13 +2,14 @@
  * 카드 앞면 컴포넌트
  */
 import { useState, useRef, useMemo } from 'react';
-import type { CSSProperties, MouseEvent } from 'react';
+import type { CSSProperties } from 'react';
 import type { Language } from '../../types/mainContent';
 import type { App } from '../../types/app';
 import { useCardFrontLinks } from '../../hooks/useCardFrontLinks';
 import { useCardFrontPhotos } from '../../hooks/useCardFrontPhotos';
 import { useCardFrontPadding } from '../../hooks/useCardFrontPadding';
 import { useCardFrontResponsiveLayout } from '../../hooks/useCardFrontResponsiveLayout';
+import { useCardFrontEmailContact } from '../../hooks/useCardFrontEmailContact';
 import ImageWithLoader from '../ImageWithLoader';
 import CardFrontApps from './CardFrontApps';
 import styles from './CardFront.module.css';
@@ -90,7 +91,6 @@ export default function CardFront({
   const isCompactHome = compactTypography && scrollProgress === 0;
   const desktopCardAccent = appsFade > greetingFade ? '34 211 238' : '168 85 247';
   
-  const [emailCopied, setEmailCopied] = useState(false);
   const [expandedAppId, setExpandedAppId] = useState<number | null>(null);
   const {
     fontSize,
@@ -134,6 +134,7 @@ export default function CardFront({
     compositionUrl,
     guitarUrl,
   } = useCardFrontLinks();
+  const { emailCopied, handleEmailClick } = useCardFrontEmailContact({ email });
 
   const linkedDescription = useMemo(() => {
     if (!profileDescription) return null;
@@ -333,36 +334,7 @@ export default function CardFront({
             </a>
           )}
           {/* Email */}
-          {email && (() => {
-            
-            const handleEmailClick = async (e: MouseEvent<HTMLAnchorElement>) => {
-              e.preventDefault();
-              
-              try {
-                // 클립보드에 이메일 주소 복사
-                await navigator.clipboard.writeText(email);
-                setEmailCopied(true);
-                
-                // 2초 후 복사 상태 해제
-                setTimeout(() => {
-                  setEmailCopied(false);
-                }, 2000);
-                
-                // mailto 링크도 시도 (백업)
-                const subject = encodeURIComponent('Contact from jace-s.com');
-                const body = encodeURIComponent('Hello,\n\n');
-                const mailtoLink = `mailto:${email}?subject=${subject}&body=${body}`;
-                window.location.href = mailtoLink;
-              } catch {
-                // 클립보드 복사 실패 시 mailto 링크만 시도
-                const subject = encodeURIComponent('Contact from jace-s.com');
-                const body = encodeURIComponent('Hello,\n\n');
-                const mailtoLink = `mailto:${email}?subject=${subject}&body=${body}`;
-                window.location.href = mailtoLink;
-              }
-            };
-            
-            return (
+          {email && (
               <a
                 href={`mailto:${email}`}
                 onClick={handleEmailClick}
@@ -385,8 +357,7 @@ export default function CardFront({
                 </svg>
                 <span className={styles.buttonText}>{emailCopied ? 'Copied!' : 'Email'}</span>
               </a>
-            );
-          })()}
+              )}
         </div>
         {/* 자격증 */}
         <button
