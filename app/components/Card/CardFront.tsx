@@ -3,7 +3,6 @@
  */
 import { useState, useRef, useMemo } from 'react';
 import type { CSSProperties, MouseEvent } from 'react';
-import { PROJECTS_PER_PAGE } from '../../constants/gridConstants';
 import type { Language } from '../../types/mainContent';
 import type { App } from '../../types/app';
 import { useCardFrontLinks } from '../../hooks/useCardFrontLinks';
@@ -11,7 +10,7 @@ import { useCardFrontPhotos } from '../../hooks/useCardFrontPhotos';
 import { useCardFrontPadding } from '../../hooks/useCardFrontPadding';
 import { useCardFrontResponsiveLayout } from '../../hooks/useCardFrontResponsiveLayout';
 import ImageWithLoader from '../ImageWithLoader';
-import AppItem from './AppItem';
+import CardFrontApps from './CardFrontApps';
 import styles from './CardFront.module.css';
 
 const cardFrontCopy: Record<Language, {
@@ -67,12 +66,6 @@ export default function CardFront({
   layoutActive = true,
 }: CardFrontProps) {
   const uiCopy = cardFrontCopy[language];
-  const closeAppModalText: Record<Language, string> = {
-    en: 'Close',
-    ko: '닫기',
-    ja: '閉じる',
-    zh: '关闭',
-  };
   // 언어별 캐주얼 폰트 설정
   const getFontFamily = (lang: Language): string => {
     switch (lang) {
@@ -97,25 +90,6 @@ export default function CardFront({
   const isCompactHome = compactTypography && scrollProgress === 0;
   const desktopCardAccent = appsFade > greetingFade ? '34 211 238' : '168 85 247';
   
-  // 언어별 페이지네이션 텍스트
-  const paginationText = {
-    en: {
-      previous: 'Previous',
-      next: 'Next',
-    },
-    ko: {
-      previous: '이전',
-      next: '다음',
-    },
-    ja: {
-      previous: '前へ',
-      next: '次へ',
-    },
-    zh: {
-      previous: '上一页',
-      next: '下一页',
-    },
-  };
   const [emailCopied, setEmailCopied] = useState(false);
   const [expandedAppId, setExpandedAppId] = useState<number | null>(null);
   const {
@@ -289,87 +263,21 @@ export default function CardFront({
             </div>
           )}
         </div>
-        {/* 변경된 컨텐츠 - 크로스페이드 인 */}
-        <div
-          className={styles.appsContainer}
-          style={{
-            opacity: appsFade,
-            pointerEvents: scrollProgress >= 1 && scrollProgress < 2 ? 'auto' : 'none',
-          }}
-        >
-          <h2 className={styles.sectionTitle}>{uiCopy.appsTitle}</h2>
-          {/* 앱 목록 - 버튼 영역을 제외한 전체 공간 사용 */}
-          <div
-            className={`${styles.appsList} ${styles.compactAppsList} ${compactTypography ? '' : styles.desktopCompactAppsList}`}
-            data-card-scroll-region
-          >
-            {apps
-              .slice((currentProjectPage - 1) * PROJECTS_PER_PAGE, currentProjectPage * PROJECTS_PER_PAGE)
-              .map((app) => (
-                <AppItem
-                  key={app.id}
-                  app={app}
-                  buttonFontSize={buttonFontSize}
-                  iconSize={iconSize}
-                  compact
-                  expanded={expandedAppId === app.id}
-                  closeLabel={closeAppModalText[language]}
-                  onToggle={() => {
-                    setExpandedAppId((currentId) => currentId === app.id ? null : app.id);
-                  }}
-                />
-              ))}
-                  </div>
-          {/* 페이지네이션 - 카드 하단에 배치 (항상 표시, 5개 미만이면 비활성화) */}
-          {apps.length > 0 && (
-            <div className={styles.paginationContainer}>
-              <button
-                onClick={() => setCurrentProjectPage((prev) => Math.max(1, prev - 1))}
-                disabled={currentProjectPage === 1 || apps.length <= PROJECTS_PER_PAGE}
-                className={styles.paginationButton}
-                style={{
-                  paddingLeft: `${smallButtonPadding.px * 0.25}rem`,
-                  paddingRight: `${smallButtonPadding.px * 0.25}rem`,
-                  paddingTop: `${smallButtonPadding.py * 0.25}rem`,
-                  paddingBottom: `${smallButtonPadding.py * 0.25}rem`,
-                  fontSize: buttonFontSize,
-                }}
-              >
-                {paginationText[language].previous}
-              </button>
-              <span 
-                className={styles.paginationPageInfo}
-                style={{
-                  paddingLeft: `${smallButtonPadding.px * 0.25}rem`,
-                  paddingRight: `${smallButtonPadding.px * 0.25}rem`,
-                  paddingTop: `${smallButtonPadding.py * 0.25}rem`,
-                  paddingBottom: `${smallButtonPadding.py * 0.25}rem`,
-                  fontSize: buttonFontSize,
-                }}
-              >
-                {currentProjectPage} / {Math.max(1, Math.ceil(apps.length / PROJECTS_PER_PAGE))}
-              </span>
-              <button
-                onClick={() =>
-                  setCurrentProjectPage((prev) =>
-                    Math.min(Math.ceil(apps.length / PROJECTS_PER_PAGE), prev + 1)
-                  )
-                }
-                disabled={currentProjectPage >= Math.ceil(apps.length / PROJECTS_PER_PAGE) || apps.length <= PROJECTS_PER_PAGE}
-                className={styles.paginationButton}
-                style={{
-                  paddingLeft: `${smallButtonPadding.px * 0.25}rem`,
-                  paddingRight: `${smallButtonPadding.px * 0.25}rem`,
-                  paddingTop: `${smallButtonPadding.py * 0.25}rem`,
-                  paddingBottom: `${smallButtonPadding.py * 0.25}rem`,
-                  fontSize: buttonFontSize,
-                }}
-              >
-                {paginationText[language].next}
-              </button>
-            </div>
-          )}
-        </div>
+        <CardFrontApps
+          appsFade={appsFade}
+          scrollProgress={scrollProgress}
+          apps={apps}
+          currentProjectPage={currentProjectPage}
+          setCurrentProjectPage={setCurrentProjectPage}
+          language={language}
+          appsTitle={uiCopy.appsTitle}
+          compactTypography={compactTypography}
+          buttonFontSize={buttonFontSize}
+          iconSize={iconSize}
+          smallButtonPadding={smallButtonPadding}
+          expandedAppId={expandedAppId}
+          setExpandedAppId={setExpandedAppId}
+        />
       </div>
       {/* 버튼을 카드의 우측 하단에 배치 (텍스트 컨테이너 밖) */}
       <div ref={buttonGroupRef} className={styles.buttonGroup}>
