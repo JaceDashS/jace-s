@@ -211,12 +211,6 @@ export default function CardFront({
     });
   }, [profileDescription, profileLinks, compositionUrl, guitarUrl]);
 
-    return () => {
-      clearTimeout(timeoutId);
-      resizeObserver.disconnect();
-    };
-  }, [compactTypography, profileDescription]);
-
   return (
     <div
       ref={containerRef}
