@@ -15,6 +15,7 @@ import { useFadeAnimation } from '../hooks/useFadeAnimation';
 import { useCardState } from '../hooks/useCardState';
 import { useWelcomeFlow } from '../hooks/useWelcomeFlow';
 import { useMainContentData } from '../hooks/useMainContentData';
+import { useMainContentRouteSync } from '../hooks/useMainContentRouteSync';
 import CardFront from './Card/CardFront';
 import CardBack from './Card/CardBack';
 import RightCardContent from './Card/RightCardContent';
@@ -435,28 +436,7 @@ export default function MainContent() {
     isHoverLeaveFlowActiveRef,
   ]);
 
-  // 라우트 변경 시 해당 위치로 스크롤
-  useEffect(() => {
-    if (!showContent || !isAnimating) return;
-
-    const scrollToProgress = (progress: number) => {
-      const windowHeight = window.innerHeight;
-      const targetScrollY = windowHeight * progress;
-      window.scrollTo({
-        top: targetScrollY,
-        behavior: 'smooth',
-      });
-    };
-
-    // pathname 변경 시 해당 스크롤 진행도로 이동
-    if (pathname === '/home') {
-      setTimeout(() => scrollToProgress(0), 100);
-    } else if (pathname === '/apps') {
-      setTimeout(() => scrollToProgress(1.5), 100);
-    } else if (pathname === '/comments') {
-      setTimeout(() => scrollToProgress(3), 100);
-    }
-  }, [pathname, showContent, isAnimating]);
+  useMainContentRouteSync({ pathname, showContent, isAnimating });
 
   // 디바이스 언어 감지 및 자동 선택
   useEffect(() => {
