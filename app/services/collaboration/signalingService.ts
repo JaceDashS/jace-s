@@ -5,6 +5,7 @@
 
 import { WebSocket } from 'ws';
 import { roomService } from './roomService';
+import { verifyHostToken } from '../../utils/hostToken';
 import { logDebug, logError } from '../../utils/logging';
 
 /**
@@ -31,6 +32,7 @@ export interface ClientToServerMessage {
   clientId: string;
   data?: {
     role?: 'host' | 'participant';
+    hostToken?: string;
     type?: 'offer' | 'answer' | 'ice-candidate';
     to?: string;
     sdp?: RTCSessionDescriptionInit;
@@ -329,10 +331,11 @@ export class SignalingService {
 
     logDebug(`[Online Sequencer] [handleRegister] Room found:${room.roomCode} hostId:${room.hostId} clientId:${clientId}`);
 
-    // 호스트 권한 확인
-    if (room.hostId !== clientId) {
-      logDebug(`[Online Sequencer] [handleRegister] Error: Unauthorized - hostId mismatch roomHostId:${room.hostId} clientId:${clientId}`);
-      this.sendError(clientId, 'Unauthorized: You are not the host of this room');
+    // 호스트 토큰 확인
+    const hostToken = data?.hostToken;
+    if (typeof hostToken !== 'string' || !verifyHostToken(hostToken, room.hostTokenHash)) {
+      logDebug(`[Online Sequencer] [handleRegister] Error: Invalid host token roomCode:${targetRoomCode} clientId:${clientId}`);
+      this.sendError(clientId, 'Unauthorized: Invalid host token');
       return;
     }
 

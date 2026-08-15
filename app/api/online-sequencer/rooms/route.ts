@@ -4,11 +4,29 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { roomService } from '@/app/services/collaboration/roomService';
-import { signalingService } from '@/app/services/collaboration/signalingService';
 import type { CreateRoomRequest } from '@/app/types/collaboration/room';
 import { createErrorResponse, logError, ErrorCode, createValidationError } from '@/app/utils/collaboration/errorHandler';
 import { withApiLogging } from '@/app/utils/apiLogger';
+import { handleOptions, setCorsHeaders } from '@/app/utils/corsUtils';
+import { getAdminSession } from '@/app/utils/adminAuth';
+import { getBearerToken, verifyHostToken } from '@/app/utils/hostToken';
 import { logDebug } from '@/app/utils/logging';
+
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
+function createUnauthenticatedResponse(): NextResponse {
+  const response = NextResponse.json(
+    { error: 'UNAUTHENTICATED' },
+    { status: 401 }
+  );
+  response.headers.set('Cache-Control', 'no-store');
+  return response;
+}
+
+export async function OPTIONS(request: NextRequest) {
+  return handleOptions(request);
+}
 
 /**
  * GET /api/online-sequencer/rooms
@@ -16,45 +34,37 @@ import { logDebug } from '@/app/utils/logging';
  */
 export async function GET(request: NextRequest) {
   return withApiLogging(request, '/api/online-sequencer/rooms', async () => {
+    if (!getAdminSession(request)) {
+      return setCorsHeaders(request, createUnauthenticatedResponse());
+    }
+
     try {
-    const rooms = roomService.getAllRooms();
-    const now = Date.now();
+      roomService.cleanupExpiredRooms();
+      const now = Date.now();
+      const rooms = roomService
+        .getAllRooms()
+        .filter((room) => room.expiresAt > now)
+        .map((room) => ({
+          roomCode: room.roomCode,
+          hostId: room.hostId,
+          createdAt: room.createdAt,
+          expiresAt: room.expiresAt,
+          participantCount: room.participants.length,
+          status: 'active' as const,
+        }));
     
-    // 각 룸에 대한 상세 정보 수집
-    const roomsInfo = rooms.map(room => {
-      const timeLeft = room.expiresAt - now;
-      const minutesLeft = Math.floor(timeLeft / (60 * 1000));
-      const connectedClients = signalingService.getRoomClients(room.roomCode);
-      const clientConnections = signalingService.getRoomClientConnections(room.roomCode);
-      
-      return {
-        roomCode: room.roomCode,
-        hostId: room.hostId,
-        createdAt: room.createdAt,
-        expiresAt: room.expiresAt,
-        minutesLeft,
-        allowJoin: room.allowJoin,
-        allowJoinExpiresAt: room.allowJoinExpiresAt,
-        participantCount: room.participants.length,
-        participants: room.participants,
-        maxParticipants: room.maxParticipants,
-        connectedClients: connectedClients.length,
-        connectedClientIds: connectedClients,
-        clientConnections: clientConnections.map(conn => ({
-          clientId: conn.clientId,
-          role: conn.role,
-          isOpen: conn.isOpen,
-          readyState: conn.readyState // 0: CONNECTING, 1: OPEN, 2: CLOSING, 3: CLOSED
-        }))
-      };
-    });
-    
-      return NextResponse.json({
+      const response = NextResponse.json({
         success: true,
-        totalRooms: rooms.length,
-        rooms: roomsInfo,
-        timestamp: now
+        data: {
+          totalRooms: rooms.length,
+          rooms,
+          timestamp: now,
+        },
       });
+      response.headers.set('Cache-Control', 'no-store');
+      response.headers.set('Deprecation', 'true');
+      response.headers.set('Link', '</api/online-sequencer/admin/rooms>; rel="successor-version"');
+      return setCorsHeaders(request, response);
     } catch (error) {
       logError('GET /api/online-sequencer/rooms', error);
       const { response, status } = createErrorResponse(
@@ -96,14 +106,49 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(response, { status });
     }
 
-    // 룸 생성 (서버가 룸 코드 생성)
-    const room = roomService.createRoom(hostId);
+    // 기존 룸 재등록은 기존 호스트 토큰으로만 허용
+    const existingRoom = roomService.getRoomByHostId(hostId);
+    if (existingRoom) {
+      const hostToken = getBearerToken(request);
+      if (!hostToken) {
+        const { response, status } = createErrorResponse(
+          'Host authentication required',
+          ErrorCode.UNAUTHORIZED,
+          401
+        );
+        return NextResponse.json(response, { status });
+      }
+
+      if (!verifyHostToken(hostToken, existingRoom.hostTokenHash)) {
+        const { response, status } = createErrorResponse(
+          'Unauthorized: Invalid host token',
+          ErrorCode.UNAUTHORIZED,
+          403
+        );
+        return NextResponse.json(response, { status });
+      }
+
+      logDebug(`[Online Sequencer] Existing room re-registered:${existingRoom.roomCode} hostId:${existingRoom.hostId}`);
+      return NextResponse.json({
+        success: true,
+        roomCode: existingRoom.roomCode,
+        hostId: existingRoom.hostId,
+        hostToken: null,
+        expiresAt: existingRoom.expiresAt,
+        allowJoin: existingRoom.allowJoin,
+        createdAt: existingRoom.createdAt
+      });
+    }
+
+    // 룸 생성 (서버가 룸 코드와 호스트 토큰 생성)
+    const { room, hostToken } = roomService.createRoom(hostId);
     logDebug(`[Online Sequencer] Room created:${room.roomCode} hostId:${room.hostId}`);
 
       return NextResponse.json({
         success: true,
         roomCode: room.roomCode,
         hostId: room.hostId,
+        hostToken,
         expiresAt: room.expiresAt,
         allowJoin: room.allowJoin,
         createdAt: room.createdAt
@@ -129,4 +174,3 @@ export async function POST(request: NextRequest) {
     }
   });
 }
-

@@ -1,5 +1,5 @@
 export const CORS_ALLOW_METHODS = 'GET, POST, PUT, DELETE, PATCH, OPTIONS';
-export const CORS_ALLOW_HEADERS = 'Content-Type, Authorization, X-Requested-With, X-Forwarded-For, X-Origin, X-Client-Id, X-Host-Id';
+export const CORS_ALLOW_HEADERS = 'Content-Type, Authorization, X-CSRF-Token, X-Requested-With, X-Forwarded-For, X-Origin, X-Client-Id, X-Host-Id';
 
 export interface CorsPolicy {
   origins: string[];

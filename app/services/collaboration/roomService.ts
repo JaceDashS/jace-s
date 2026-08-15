@@ -5,7 +5,14 @@
 
 import type { Room } from '@/app/types/collaboration/room';
 import { generateRoomCode } from '@/app/utils/collaboration/roomCodeGenerator';
+import { createHostToken } from '@/app/utils/hostToken';
 import { logDebug } from '@/app/utils/logging';
+
+export interface RoomCreationResult {
+  room: Room;
+  /** 새 룸 생성 시에만 반환하며, 기존 룸 재조회에서는 원문을 복구할 수 없습니다. */
+  hostToken: string | null;
+}
 /**
  * 룸 저장소 (인메모리)
  */
@@ -74,12 +81,12 @@ export class RoomService {
    * 
    * @param hostId - 호스트 UUID
    * @param maxParticipants - 최대 참가자 수 (기본값: 4)
-   * @returns 생성된 룸
+   * @returns 생성된 룸과 새 룸에서만 발급되는 호스트 토큰
    */
-  createRoom(hostId: string, maxParticipants: number = 4): Room {
+  createRoom(hostId: string, maxParticipants: number = 4): RoomCreationResult {
     const existingRoom = this.pruneRoomsByHostId(hostId);
     if (existingRoom) {
-      return existingRoom;
+      return { room: existingRoom, hostToken: null };
     }
 
     // 사용 중인 룸 코드 조회
@@ -90,10 +97,12 @@ export class RoomService {
     
     const now = Date.now();
     const expiresAt = now + MAX_ROOM_TTL_MS; // 6시간 후
+    const { token: hostToken, tokenHash: hostTokenHash } = createHostToken();
     
     const room: Room = {
       roomCode,
       hostId,
+      hostTokenHash,
       createdAt: now,
       expiresAt,
       allowJoin: false,
@@ -104,7 +113,7 @@ export class RoomService {
     };
     
     roomStore.set(roomCode, room);
-    return room;
+    return { room, hostToken };
   }
 
   /**
@@ -334,4 +343,3 @@ const roomService = globalThis.__roomService || new RoomService();
 globalThis.__roomService = roomService;
 
 export { roomService };
-

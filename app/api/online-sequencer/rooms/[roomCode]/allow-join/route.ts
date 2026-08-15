@@ -8,6 +8,7 @@ import { isValidRoomCode } from '@/app/utils/collaboration/roomCodeGenerator';
 import type { AllowJoinRequest, AllowJoinResponse } from '@/app/types/collaboration/room';
 import { createErrorResponse, logError, ErrorCode } from '@/app/utils/collaboration/errorHandler';
 import { withApiLogging } from '@/app/utils/apiLogger';
+import { getBearerToken, verifyHostToken } from '@/app/utils/hostToken';
 import { logDebug } from '@/app/utils/logging';
 
 /**
@@ -25,8 +26,7 @@ export async function POST(
     try {
     const body: AllowJoinRequest = await request.json();
     duration = body.duration || 60;
-    const clientId = request.headers.get('x-client-id') || undefined;
-    logDebug(`[Online Sequencer] [POST /api/online-sequencer/rooms/:roomCode/allow-join] Allow join request received:${roomCode} duration:${duration} clientId:${clientId || 'none'}`);
+    logDebug(`[Online Sequencer] [POST /api/online-sequencer/rooms/:roomCode/allow-join] Allow join request received:${roomCode} duration:${duration}`);
 
     // 룸 코드 형식 검증
     if (!isValidRoomCode(roomCode)) {
@@ -59,10 +59,20 @@ export async function POST(
       return NextResponse.json(response, { status });
     }
 
-    // 호스트 권한 확인
-    if (clientId && room.hostId !== clientId) {
+    // 호스트 토큰 확인
+    const hostToken = getBearerToken(request);
+    if (!hostToken) {
       const { response, status } = createErrorResponse(
-        'Unauthorized: Only the host can allow join',
+        'Host authentication required',
+        ErrorCode.UNAUTHORIZED,
+        401
+      );
+      return NextResponse.json(response, { status });
+    }
+
+    if (!verifyHostToken(hostToken, room.hostTokenHash)) {
+      const { response, status } = createErrorResponse(
+        'Unauthorized: Invalid host token',
         ErrorCode.UNAUTHORIZED,
         403
       );
@@ -116,4 +126,3 @@ export async function POST(
     }
   });
 }
-

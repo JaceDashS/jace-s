@@ -9,6 +9,9 @@ export interface Room {
   
   /** 호스트 UUID */
   hostId: string;
+
+  /** 호스트 인증 토큰의 SHA-256 해시 */
+  hostTokenHash: string;
   
   /** 생성 시간 (timestamp) */
   createdAt: number;
