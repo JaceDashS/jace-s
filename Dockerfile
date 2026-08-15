@@ -95,7 +95,6 @@ RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
 
 # Next.js 빌드 결과물 복사
-COPY --from=builder /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
@@ -147,6 +146,5 @@ RUN echo '[supervisord]' > /etc/supervisord.conf && \
     mkdir -p /var/log/nextjs /var/log/supervisor
 
 CMD ["/usr/bin/supervisord", "-c", "/etc/supervisord.conf"]
-
 
 
