@@ -31,10 +31,49 @@ import {
 import { debugEnvironmentVariables } from '../utils/envDebug';
 
 const shouldLog = process.env.NEXT_PUBLIC_DEBUG_LOGS === 'true';
-const MAX_DESKTOP_WHEEL_SCROLL_SPEED_PX_PER_SECOND = 2000;
-const MIN_WHEEL_FRAME_MS = 16;
-const MAX_WHEEL_FRAME_MS = 50;
+const DESKTOP_MEDIA_QUERY = '(min-width: 601px)';
+const MAX_SCROLL_PROGRESS = 3;
+const APPS_START_PROGRESS = 1;
+const APPS_END_PROGRESS = 2;
+const APPS_BUTTON_TARGET_PROGRESS = 1.5; // 네비게이터 apps 버튼이 이동하는 지점
+const SCROLL_REARM_DISTANCE_PROGRESS = 0.2;
+const WHEEL_GESTURE_IDLE_MS = 300;
+// 스크롤이 멈추면 잠금은 저절로 풀린다. 다만 느리게 스크롤해도 자물쇠가 보이도록
+// 최소 표시 시간을 보장한다 (이보다 일찍 풀리지 않는다).
+const APPS_LOCK_MIN_HOLD_MS = 500;
 const SHORT_VIEWPORT_MEDIA_QUERY = '(max-height: 499.5px)';
+const APPS_LOCK_BODY_PATH = 'M12 10.5 C10.3 10.5 8.7 10.5 7 10.5 C5.9 10.5 5 11.4 5 12.5 C5 14.5 5 16.5 5 18.4 C5 19.3 5.7 20 6.6 20 C10.2 20 13.8 20 17.4 20 C18.3 20 19 19.3 19 18.4 C19 16.5 19 14.5 19 12.5 C19 11.4 18.1 10.5 17 10.5 C15.3 10.5 13.7 10.5 12 10.5 Z';
+// 고리: 오른쪽 다리는 길게(y 17까지) 몸통 깊숙이, 왼쪽 다리는 짧게(y 11.5) 몸통 상단에 살짝만 걸친다.
+// 몸통보다 먼저 그려서 z축상 뒤에 놓이므로, 몸통(y 10.5~20)에 가려진 부분은 보이지 않는다.
+const APPS_SHACKLE_PATH = 'M15 17 L15 8.1 C15 6.44 13.66 5.1 12 5.1 C10.34 5.1 9 6.44 9 8.1 L9 11.2';
+// 잠금 해제 시 고리만 위로 올라온다. 짧은 왼쪽 다리가 몸통 위로 빠져나오며 열린 것처럼 보인다.
+const APPS_SHACKLE_OPEN_TRANSFORM = 'translateY(-3px)';
+// 자물쇠는 평상시 숨어 있다가 아래 단계에서만 나타난다.
+//   closing -> closed : 재잠금 (고리 낙하 후 사라짐)
+//   holding -> opening -> opened : 진입 정지 (고정 -> 고리 상승 -> 사라지며 활성 상태로)
+type AppsLockPhase = 'closing' | 'closed' | 'holding' | 'opening' | 'opened' | null;
+
+const APPS_LOCK_FADE_MS = 200; // 자물쇠 등장/퇴장 페이드
+const APPS_UNLOCK_OPEN_MS = 360; // 고리 상승
+const APPS_UNLOCK_OPEN_EASING = 'cubic-bezier(0.34, 1.32, 0.64, 1)'; // 살짝 튀어오르며 열림
+// 잠길 때는 자물쇠가 먼저 나타난 뒤(delay) 고리가 가속하며 내려꽂힌다.
+const APPS_LOCK_CLOSE_MS = 240;
+const APPS_LOCK_CLOSE_DELAY_MS = 110;
+const APPS_LOCK_CLOSE_EASING = 'cubic-bezier(0.55, 0, 0.85, 0.35)';
+const APPS_LOCK_CLOSE_HOLD_MS = 260; // 잠긴 모습을 잠깐 보여주고 사라진다
+// apps 마커는 "멈춰 섰던 자리"에서만 활성이다. home 마커의 scrollProgress === 0 에 대응하되,
+// 스크롤 값이 정확히 떨어지지 않을 수 있어 약간의 허용 오차를 둔다.
+const APPS_ACTIVE_TOLERANCE_PROGRESS = 0.02;
+
+const sendScrollDebugLog = (event: string, details: Record<string, unknown> = {}) => {
+  if (process.env.NODE_ENV !== 'development') return;
+
+  void fetch('/api/debug/scroll', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ event, timestamp: Date.now(), ...details }),
+  }).catch(() => undefined);
+};
 
 export default function MainContent() {
   // 상수들을 별도 파일에서 import하여 사용
@@ -86,6 +125,28 @@ export default function MainContent() {
   const [currentProjectPage, setCurrentProjectPage] = useState(1); // 프로젝트 페이지네이션 현재 페이지
   const [isHomeCardShaking, setIsHomeCardShaking] = useState(false);
   const homeCardShakeTimeoutRef = useRef<number | null>(null);
+  // apps 게이트의 지속 상태. 잠겨 있으면 apps에 진입하는 첫 시도에서 한 번 멈춘다.
+  // apps 바깥으로 충분히 멀어졌을 때만 다시 잠긴다.
+  const appsGateLockedRef = useRef(true);
+  const appStopWaitingForGestureRef = useRef<'down' | 'up' | null>(null);
+  const appStopWaitingProgressRef = useRef<number | null>(null);
+  const [appStopWaitingForGesture, setAppStopWaitingForGesture] = useState<'down' | 'up' | null>(null);
+  // 자물쇠 표시 단계. null이면 자물쇠가 숨겨진 평상시(비활성/활성) 마커다.
+  // closing/holding/opening 동안 보이고, closed/opened는 페이드아웃 구간이다.
+  const appsLockPhaseTimeoutRef = useRef<number | null>(null);
+  const [appsLockPhase, setAppsLockPhase] = useState<AppsLockPhase>(null);
+  // 마커가 활성으로 보일 기준 progress. 정지했던 지점(또는 네비 버튼 목적지)이며,
+  // 여기서 벗어나는 순간 비활성으로 돌아간다.
+  const [appsActiveAnchor, setAppsActiveAnchor] = useState<number | null>(null);
+  // 잠기는 순간 고리를 '열린 위치'에 한 프레임 세워둔 뒤 닫힌 위치로 트랜지션시키기 위한 상태
+  const appsLockDropRafRef = useRef<number | null>(null);
+  const [isAppsLockDropping, setIsAppsLockDropping] = useState(false);
+  const lastWheelEventTimestampRef = useRef<number | null>(null);
+  // 네비게이터 버튼처럼 휠 밖에서 잠금을 풀어야 하는 곳에서 쓰는 핸들
+  // (대기 중에는 scroll 핸들러가 위치를 되돌리므로 먼저 해제해야 한다)
+  const releaseAppsStopRef = useRef<(() => void) | null>(null);
+  const wheelGestureIdleTimeoutRef = useRef<number | null>(null);
+  const appsStopStartedAtRef = useRef<number | null>(null);
   const {
     apps,
     profileName,
@@ -148,11 +209,19 @@ export default function MainContent() {
   const pathname = usePathname();
 
   useEffect(() => {
-    if (!showContent || !isAnimating) return;
+    if (!showContent || !isAnimating) {
+      sendScrollDebugLog('effect-inactive', { showContent, isAnimating });
+      return;
+    }
+
+    sendScrollDebugLog('effect-active', {
+      showContent,
+      isAnimating,
+      scrollY: window.scrollY,
+    });
 
     let rafId: number | null = null;
     let lastScrollY = window.scrollY; // 이전 스크롤 위치 추적
-    let lastWheelTimestamp: number | null = null;
 
     const handleScroll = () => {
       // 호버 해제 플로우가 시작되었고 완료 조건(4조건)을 만족하지 못하면 스크롤 자체도 되돌린다 (입력 차단과 함께 사용)
@@ -201,9 +270,35 @@ export default function MainContent() {
 
       const scrollY = window.scrollY;
       const windowHeight = window.innerHeight;
+
+      const waitingDirection = appStopWaitingForGestureRef.current;
+      const waitingProgress = appStopWaitingProgressRef.current;
+      if (waitingDirection !== null && waitingProgress !== null) {
+        const waitingScrollY = windowHeight * waitingProgress;
+
+        if (Math.abs(scrollY - waitingScrollY) > 1) {
+          window.scrollTo({
+            top: waitingScrollY,
+            behavior: 'auto',
+          });
+          lastScrollY = waitingScrollY;
+          sendScrollDebugLog('scroll-recovered-at-apps', {
+            direction: waitingDirection,
+            scrollY,
+            recoveredScrollY: waitingScrollY,
+          });
+          return;
+        }
+      }
+
       // 스크롤 진행도 계산 (3개 화면 높이 기준: 0~3, 플립 완료 시점까지)
-      const calculatedProgress = Math.min(Math.max(scrollY / windowHeight, 0), 3); // 0~3
-      
+      const calculatedProgress = Math.min(Math.max(scrollY / windowHeight, 0), MAX_SCROLL_PROGRESS); // 0~3
+
+      // 재잠금은 실제 위치 기준으로 판단한다. 휠뿐 아니라 네비 버튼/키보드/스크롤바로
+      // 이동한 경우에도 게이트가 다시 잠겨야 하기 때문이다.
+      updateAppsGateLock(calculatedProgress);
+
+
       // 스크롤 방향 확인 (아래로: true, 위로: false)
       const scrollingDown = scrollY > lastScrollY;
       const scrollingUp = scrollY < lastScrollY;
@@ -303,32 +398,225 @@ export default function MainContent() {
       return event.deltaY;
     };
 
-    const applyDesktopWheelSpeedLimit = (event: WheelEvent) => {
+    // 게이트가 잠긴 상태에서 apps 진입 경계를 넘으려 하면 그 지점을 돌려준다.
+    const resolveAppsStop = (
+      direction: 'down' | 'up',
+      currentProgress: number,
+      nextProgress: number,
+    ) => {
+      if (!appsGateLockedRef.current) return null;
+
+      const stopProgress =
+        direction === 'down' ? APPS_START_PROGRESS : APPS_END_PROGRESS;
+
+      const crosses =
+        direction === 'down'
+          ? currentProgress < stopProgress && nextProgress >= stopProgress
+          : currentProgress > stopProgress && nextProgress <= stopProgress;
+
+      return crosses ? stopProgress : null;
+    };
+
+    const clearAppsLockPhaseTimeout = () => {
+      if (appsLockPhaseTimeoutRef.current !== null) {
+        window.clearTimeout(appsLockPhaseTimeoutRef.current);
+        appsLockPhaseTimeoutRef.current = null;
+      }
+    };
+
+    // 해제: 고리가 올라간 뒤(opening) 열린 채로 사라진다(opened).
+    // 사라지는 동안 버튼은 활성 상태로 커지므로 두 모션이 이어져 보인다.
+    const startAppsUnlockAnimation = () => {
+      clearAppsLockPhaseTimeout();
+
+      setAppsLockPhase('opening');
+      appsLockPhaseTimeoutRef.current = window.setTimeout(() => {
+        setAppsLockPhase('opened');
+        appsLockPhaseTimeoutRef.current = window.setTimeout(() => {
+          appsLockPhaseTimeoutRef.current = null;
+          setAppsLockPhase(null);
+        }, APPS_LOCK_FADE_MS);
+      }, APPS_UNLOCK_OPEN_MS);
+    };
+
+    // 재잠금: 자물쇠가 나타나며 고리가 내려꽂히고(closing), 잠깐 머문 뒤 사라진다(closed).
+    // 고리를 열린 위치에 트랜지션 없이 한 프레임 세워둬야 '내려오는' 모션이 그려진다.
+    const startAppsRelockAnimation = () => {
+      clearAppsLockPhaseTimeout();
+
+      if (appsLockDropRafRef.current !== null) {
+        window.cancelAnimationFrame(appsLockDropRafRef.current);
+      }
+
+      setIsAppsLockDropping(true);
+      setAppsLockPhase('closing');
+      appsLockDropRafRef.current = window.requestAnimationFrame(() => {
+        appsLockDropRafRef.current = window.requestAnimationFrame(() => {
+          appsLockDropRafRef.current = null;
+          setIsAppsLockDropping(false);
+        });
+      });
+
+      appsLockPhaseTimeoutRef.current = window.setTimeout(() => {
+        setAppsLockPhase('closed');
+        appsLockPhaseTimeoutRef.current = window.setTimeout(() => {
+          appsLockPhaseTimeoutRef.current = null;
+          setAppsLockPhase(null);
+        }, APPS_LOCK_FADE_MS);
+      }, APPS_LOCK_CLOSE_DELAY_MS + APPS_LOCK_CLOSE_MS + APPS_LOCK_CLOSE_HOLD_MS);
+    };
+
+    // apps 바깥으로 SCROLL_REARM_DISTANCE_PROGRESS 이상 벗어나면 게이트가 다시 잠긴다.
+    // 정지 직후 위치(경계선 위)는 이 범위 밖이라 곧바로 재잠금되지 않는다.
+    const updateAppsGateLock = (nextProgress: number) => {
+      if (appsGateLockedRef.current) return;
+
+      const relockedBelow = nextProgress <= APPS_START_PROGRESS - SCROLL_REARM_DISTANCE_PROGRESS;
+      const relockedAbove = nextProgress >= APPS_END_PROGRESS + SCROLL_REARM_DISTANCE_PROGRESS;
+
+      if (relockedBelow || relockedAbove) {
+        appsGateLockedRef.current = true;
+        startAppsRelockAnimation();
+      }
+    };
+
+    const clearAppStopWaitingForGesture = () => {
+      if (wheelGestureIdleTimeoutRef.current !== null) {
+        window.clearTimeout(wheelGestureIdleTimeoutRef.current);
+        wheelGestureIdleTimeoutRef.current = null;
+      }
+
+      if (appStopWaitingForGestureRef.current === null) return;
+
+      appStopWaitingForGestureRef.current = null;
+      appStopWaitingProgressRef.current = null;
+      appsStopStartedAtRef.current = null;
+      setAppStopWaitingForGesture(null);
+      startAppsUnlockAnimation();
+    };
+
+    releaseAppsStopRef.current = clearAppStopWaitingForGesture;
+
+    // 잠긴 뒤 최소 표시 시간이 아직 안 지났는지. 이 동안에는 어떤 이유로도 풀리지 않는다.
+    const isWithinAppsLockMinHold = () => {
+      const startedAt = appsStopStartedAtRef.current;
+      return startedAt !== null && Date.now() - startedAt < APPS_LOCK_MIN_HOLD_MS;
+    };
+
+    // 스크롤이 멎으면 잠금이 저절로 풀린다. 최소 표시 시간이 남았으면 그만큼 미룬다.
+    const scheduleAppStopWaitingTimeout = () => {
+      if (wheelGestureIdleTimeoutRef.current !== null) {
+        window.clearTimeout(wheelGestureIdleTimeoutRef.current);
+      }
+
+      const startedAt = appsStopStartedAtRef.current;
+      const heldFor = startedAt === null ? 0 : Date.now() - startedAt;
+      const delay = Math.max(WHEEL_GESTURE_IDLE_MS, APPS_LOCK_MIN_HOLD_MS - heldFor);
+
+      wheelGestureIdleTimeoutRef.current = window.setTimeout(() => {
+        wheelGestureIdleTimeoutRef.current = null;
+        if (appStopWaitingForGestureRef.current === null) return;
+
+        clearAppStopWaitingForGesture();
+        lastWheelEventTimestampRef.current = null;
+        sendScrollDebugLog('wheel-gesture-idle-unlock');
+      }, delay);
+    };
+
+    const stopAtAppsBoundary = (event: WheelEvent) => {
       if (
         event.ctrlKey ||
-        !window.matchMedia('(min-width: 601px)').matches ||
-        Math.abs(event.deltaY) <= Math.abs(event.deltaX) ||
-        canNestedRegionConsumeWheel(event)
+        !window.matchMedia(DESKTOP_MEDIA_QUERY).matches ||
+        Math.abs(event.deltaY) <= Math.abs(event.deltaX)
       ) {
-        lastWheelTimestamp = null;
+        lastWheelEventTimestampRef.current = null;
         return false;
       }
 
-      const elapsedMs = lastWheelTimestamp === null
-        ? MIN_WHEEL_FRAME_MS
-        : Math.min(
-            Math.max(event.timeStamp - lastWheelTimestamp, MIN_WHEEL_FRAME_MS),
-            MAX_WHEEL_FRAME_MS,
-          );
-      lastWheelTimestamp = event.timeStamp;
-
       const deltaPixels = getWheelDeltaInPixels(event);
-      const maximumDelta = MAX_DESKTOP_WHEEL_SCROLL_SPEED_PX_PER_SECOND * (elapsedMs / 1000);
-      const limitedDelta = Math.sign(deltaPixels) * Math.min(Math.abs(deltaPixels), maximumDelta);
+      if (deltaPixels === 0) {
+        lastWheelEventTimestampRef.current = null;
+        return false;
+      }
+
+      const currentScrollY = window.scrollY;
+      const windowHeight = window.innerHeight;
+      const currentProgress = currentScrollY / windowHeight;
+      const nextProgress = (currentScrollY + deltaPixels) / windowHeight;
+      const direction = deltaPixels > 0 ? 'down' : 'up';
+      const nestedRegionConsumes = canNestedRegionConsumeWheel(event);
+      const lastWheelEventTimestamp = lastWheelEventTimestampRef.current;
+      const isNewWheelGesture =
+        lastWheelEventTimestamp === null ||
+        event.timeStamp - lastWheelEventTimestamp > WHEEL_GESTURE_IDLE_MS;
+
+      lastWheelEventTimestampRef.current = event.timeStamp;
+
+      sendScrollDebugLog('wheel-input', {
+        scrollY: currentScrollY,
+        currentProgress,
+        nextProgress,
+        deltaPixels,
+        direction,
+        eventTimeStamp: event.timeStamp,
+        isNewWheelGesture,
+        nestedRegionConsumes,
+        gateLocked: appsGateLockedRef.current,
+        waitingDirection: appStopWaitingForGestureRef.current,
+      });
+
+      if (nestedRegionConsumes) {
+        lastWheelEventTimestampRef.current = null;
+        sendScrollDebugLog('wheel-nested-region');
+        return false;
+      }
+
+      const waitingDirection = appStopWaitingForGestureRef.current;
+      if (
+        waitingDirection !== null &&
+        !isWithinAppsLockMinHold() &&
+        (isNewWheelGesture || waitingDirection !== direction)
+      ) {
+        clearAppStopWaitingForGesture();
+      }
+
+      if (appStopWaitingForGestureRef.current !== null) {
+        // 계속 굴리는 동안에는 막고, 멎으면 타이머가 풀어 준다.
+        scheduleAppStopWaitingTimeout();
+        event.preventDefault();
+        event.stopPropagation();
+        sendScrollDebugLog('wheel-blocked-waiting', { direction, scrollY: currentScrollY });
+        return true;
+      }
+
+      const stopProgress = resolveAppsStop(direction, currentProgress, nextProgress);
+
+      if (stopProgress === null) {
+        return false;
+      }
 
       event.preventDefault();
       event.stopPropagation();
-      window.scrollBy({ top: limitedDelta, behavior: 'auto' });
+      appStopWaitingForGestureRef.current = direction;
+      appStopWaitingProgressRef.current = stopProgress;
+      appsStopStartedAtRef.current = Date.now();
+      setAppStopWaitingForGesture(direction);
+      setAppsActiveAnchor(stopProgress);
+      clearAppsLockPhaseTimeout();
+      setAppsLockPhase('holding');
+      scheduleAppStopWaitingTimeout();
+      window.scrollTo({
+        top: windowHeight * stopProgress,
+        behavior: 'auto',
+      });
+      sendScrollDebugLog('wheel-stop-at-apps', {
+        direction,
+        stopProgress,
+        scrollY: currentScrollY,
+      });
+
+      appsGateLockedRef.current = false;
+
       return true;
     };
 
@@ -340,7 +628,7 @@ export default function MainContent() {
         triggerHomeCardShake();
         return;
       }
-      applyDesktopWheelSpeedLimit(e);
+      stopAtAppsBoundary(e);
     };
 
     const onTouchMove = (e: TouchEvent) => {
@@ -393,6 +681,28 @@ export default function MainContent() {
       if (rafId !== null) {
         cancelAnimationFrame(rafId);
       }
+      releaseAppsStopRef.current = null;
+      appsStopStartedAtRef.current = null;
+      if (wheelGestureIdleTimeoutRef.current !== null) {
+        window.clearTimeout(wheelGestureIdleTimeoutRef.current);
+        wheelGestureIdleTimeoutRef.current = null;
+      }
+      if (appsLockPhaseTimeoutRef.current !== null) {
+        window.clearTimeout(appsLockPhaseTimeoutRef.current);
+        appsLockPhaseTimeoutRef.current = null;
+      }
+      if (appsLockDropRafRef.current !== null) {
+        window.cancelAnimationFrame(appsLockDropRafRef.current);
+        appsLockDropRafRef.current = null;
+      }
+      appStopWaitingForGestureRef.current = null;
+      setAppStopWaitingForGesture(null);
+      setAppsLockPhase(null);
+      setAppsActiveAnchor(null);
+      setIsAppsLockDropping(false);
+      lastWheelEventTimestampRef.current = null;
+      appStopWaitingProgressRef.current = null;
+      appsGateLockedRef.current = true;
     };
   }, [
     showContent,
@@ -450,6 +760,20 @@ export default function MainContent() {
 
   // 페이드 애니메이션 계산은 useFadeAnimation 훅 사용
   const { greetingFade, photoCardFade, appsFade } = useFadeAnimation(scrollProgress);
+  const isAppsScrollLocked = appStopWaitingForGesture !== null;
+  // 자물쇠가 보이는 동안에만 SVG가 마커를 대신 그린다. 그 외에는 home/comments 마커와
+  // 완전히 동일하게 버튼의 배경색/너비 CSS 트랜지션만으로 비활성↔활성이 처리된다.
+  const isAppsLockVisible =
+    appsLockPhase === 'closing' ||
+    appsLockPhase === 'holding' ||
+    appsLockPhase === 'opening';
+  // 페이드아웃(opened) 중에도 고리는 열린 채로 두어야 사라지면서 다시 내려오지 않는다.
+  const isAppsShackleOpen =
+    isAppsLockDropping || appsLockPhase === 'opening' || appsLockPhase === 'opened';
+  // home 마커의 scrollProgress === 0 과 같은 성격: 멈춰 섰던 자리에서만 활성.
+  const isAppsInActiveRange =
+    appsActiveAnchor !== null &&
+    Math.abs(scrollProgress - appsActiveAnchor) <= APPS_ACTIVE_TOLERANCE_PROGRESS;
 
   const rightCardTransform = isAnimating
     ? `${getRightCardTransform(scrollProgress, hoverPhase)} ${selectedCertification ? 'rotateY(180deg)' : ''}`
@@ -635,6 +959,7 @@ export default function MainContent() {
                 <button
                   onClick={() => {
                     const windowHeight = window.innerHeight;
+                    releaseAppsStopRef.current?.();
                     window.scrollTo({
                       top: windowHeight * 0,
                       behavior: 'smooth',
@@ -687,26 +1012,76 @@ export default function MainContent() {
                 <button
                   onClick={() => {
                     const windowHeight = window.innerHeight;
+                    // 버튼으로 이동한 지점도 "멈춰 선 자리"이므로 활성 기준점이 된다.
+                    releaseAppsStopRef.current?.();
+                    setAppsActiveAnchor(APPS_BUTTON_TARGET_PROGRESS);
                     window.scrollTo({
-                      top: windowHeight * 1.5,
+                      top: windowHeight * APPS_BUTTON_TARGET_PROGRESS,
                       behavior: 'smooth',
                     });
                   }}
-                  className={`desktop-navigation-button h-3 rounded-full transition-all duration-300 cursor-pointer ${
-                    scrollProgress >= 1 && scrollProgress < 2
+                  className={`desktop-navigation-button relative rounded-full transition-all duration-300 ease-in-out cursor-pointer ${
+                    isAppsLockVisible
+                      ? 'bg-transparent text-amber-300 drop-shadow-[0_0_8px_rgba(251,191,36,0.7)]'
+                      : isAppsInActiveRange
                       ? 'bg-purple-600 w-9'
-                      : scrollProgress >= 2
+                      : scrollProgress > APPS_START_PROGRESS
                       ? 'bg-purple-400 w-3'
                       : 'bg-slate-600 w-3'
                   }`}
                   style={{
-                    height: 'clamp(0.35rem, 1.6vh, 0.75rem)',
-                    width: scrollProgress >= 1 && scrollProgress < 2
+                    height: isAppsLockVisible
+                      ? 'clamp(1rem, 2.5vh, 1.5rem)'
+                      : 'clamp(0.35rem, 1.6vh, 0.75rem)',
+                    width: isAppsLockVisible
+                      ? 'clamp(1rem, 2.5vh, 1.5rem)'
+                      : isAppsInActiveRange
                       ? 'clamp(1.5rem, 4.5vh, 2.25rem)'
                       : 'clamp(0.35rem, 1.6vh, 0.75rem)',
                   }}
-                  aria-label="Apps"
-                />
+                  aria-label={
+                    isAppsScrollLocked
+                      ? 'Apps (scroll paused)'
+                      : 'Apps'
+                  }
+                >
+                  {/* 자물쇠 전용 레이어. 페이드아웃되는 동안 버튼의 CSS 트랜지션이
+                      비활성↔활성 전환을 이어받아 두 모션이 하나로 이어져 보인다. */}
+                  <svg
+                    aria-hidden="true"
+                    className="pointer-events-none absolute inset-0 h-full w-full"
+                    fill="currentColor"
+                    viewBox="0 0 24 24"
+                    xmlns="http://www.w3.org/2000/svg"
+                    style={{
+                      opacity: isAppsLockVisible ? 1 : 0,
+                      transition: `opacity ${APPS_LOCK_FADE_MS}ms ease-out`,
+                    }}
+                  >
+                    {/* 고리를 먼저 그려서 몸통 뒤(z축 아래)에 둔다 */}
+                    <path
+                      d={APPS_SHACKLE_PATH}
+                      fill="none"
+                      stroke="currentColor"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth="1.7"
+                      style={{
+                        transformBox: 'view-box',
+                        transform: isAppsShackleOpen
+                          ? APPS_SHACKLE_OPEN_TRANSFORM
+                          : 'none',
+                        transition: isAppsLockDropping
+                          ? 'none' // 열린 위치로 세우는 첫 프레임은 즉시 이동
+                          : isAppsShackleOpen
+                          ? `transform ${APPS_UNLOCK_OPEN_MS}ms ${APPS_UNLOCK_OPEN_EASING}`
+                          : `transform ${APPS_LOCK_CLOSE_MS}ms ${APPS_LOCK_CLOSE_EASING} ${APPS_LOCK_CLOSE_DELAY_MS}ms`,
+                      }}
+                    />
+                    <path d={APPS_LOCK_BODY_PATH} fill="currentColor" />
+                    <circle cx="12" cy="15.4" r="1.15" fill="rgb(15 23 42)" />
+                  </svg>
+                </button>
                 <span
                   className="desktop-navigation-label text-xs text-white/80 whitespace-nowrap"
                   style={{ fontSize: 'clamp(0.55rem, 1.7vh, 0.75rem)' }}
@@ -743,6 +1118,7 @@ export default function MainContent() {
                 <button
                   onClick={() => {
                     const windowHeight = window.innerHeight;
+                    releaseAppsStopRef.current?.();
                     window.scrollTo({
                       top: windowHeight * 3,
                       behavior: 'smooth',
