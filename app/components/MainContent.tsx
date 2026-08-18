@@ -61,6 +61,27 @@ const APPS_LOCK_CLOSE_MS = 240;
 const APPS_LOCK_CLOSE_DELAY_MS = 110;
 const APPS_LOCK_CLOSE_EASING = 'cubic-bezier(0.55, 0, 0.85, 0.35)';
 const APPS_LOCK_CLOSE_HOLD_MS = 260; // 잠긴 모습을 잠깐 보여주고 사라진다
+// 정지 상태에서 계속 굴릴 때만 뜨는 중앙 안내 문구. 자물쇠가 풀리면 함께 사라진다.
+const APPS_LOCK_HINT_FADE_IN_MS = 260;
+const APPS_LOCK_HINT_FADE_OUT_MS = 420;
+const APPS_LOCK_HINT_OPACITY = 0.72;
+// 막히자마자 띄우면 다급해 보인다. 잠긴 뒤 이만큼 더 굴리고 있을 때만 안내가 뜬다.
+const APPS_LOCK_HINT_DELAY_MS = 900;
+// 문구 뒤에 깔리는 띠. 화면 좌우로 쭉 이어지고, 페이드아웃은 좌우 방향으로만 일어난다.
+// 위아래 경계는 흐리지 않고 선으로 또렷하게 남는다.
+const APPS_LOCK_HINT_BAND_HEIGHT = '2rem';
+const APPS_LOCK_HINT_BAND_WIDTH = 'min(24rem, 58vw)';
+const APPS_LOCK_HINT_BAND_GRADIENT =
+  'linear-gradient(90deg, rgba(15,23,42,0) 0%, rgba(15,23,42,0.6) 22%, rgba(15,23,42,0.8) 50%, rgba(15,23,42,0.6) 78%, rgba(15,23,42,0) 100%)';
+// 위아래 보더도 같은 방향으로만 사라진다 (양끝에서 뚝 끊기지 않도록).
+const APPS_LOCK_HINT_BAND_BORDER =
+  'linear-gradient(90deg, rgba(226,232,240,0) 0%, rgba(226,232,240,0.55) 22%, rgba(226,232,240,0.85) 50%, rgba(226,232,240,0.55) 78%, rgba(226,232,240,0) 100%)';
+const APPS_LOCK_HINT_BAND_BORDER_WIDTH = '1px';
+// 해제 연출: 문구 위로 자물쇠가 떠오른 뒤 고리가 열리고, 잠깐 머물다 전체가 함께 사라진다.
+const APPS_HINT_LOCK_APPEAR_MS = 220;
+const APPS_HINT_LOCK_HOLD_MS = 180;
+// 안내 오버레이 단계. 'hint'는 문구가 떠 있는 동안, 'unlocking'은 해제 연출 구간이다.
+type AppsHintPhase = 'hint' | 'unlocking' | null;
 // apps 마커는 "멈춰 섰던 자리"에서만 활성이다. home 마커의 scrollProgress === 0 에 대응하되,
 // 스크롤 값이 정확히 떨어지지 않을 수 있어 약간의 허용 오차를 둔다.
 const APPS_ACTIVE_TOLERANCE_PROGRESS = 0.02;
@@ -135,6 +156,12 @@ export default function MainContent() {
   // closing/holding/opening 동안 보이고, closed/opened는 페이드아웃 구간이다.
   const appsLockPhaseTimeoutRef = useRef<number | null>(null);
   const [appsLockPhase, setAppsLockPhase] = useState<AppsLockPhase>(null);
+  // 안내 문구는 정지된 채로 계속 굴릴 때만 뜬다. 바로 멈춘 사용자에게는 보이지 않는다.
+  const appsHintPhaseRef = useRef<AppsHintPhase>(null);
+  const [appsHintPhase, setAppsHintPhase] = useState<AppsHintPhase>(null);
+  const appsHintTimeoutRef = useRef<number | null>(null);
+  const appsHintShackleRafRef = useRef<number | null>(null);
+  const [isAppsHintShackleOpen, setIsAppsHintShackleOpen] = useState(false);
   // 마커가 활성으로 보일 기준 progress. 정지했던 지점(또는 네비 버튼 목적지)이며,
   // 여기서 벗어나는 순간 비활성으로 돌아간다.
   const [appsActiveAnchor, setAppsActiveAnchor] = useState<number | null>(null);
@@ -180,6 +207,14 @@ export default function MainContent() {
     ko: '자격증',
     ja: '資格',
     zh: '证书',
+  };
+
+  // apps 진입 정지 안내 문구 매핑
+  const appsLockHintText = {
+    en: 'Pause for a moment',
+    ko: '잠시 멈춰주세요',
+    ja: '少し止まってください',
+    zh: '请稍作停留',
   };
 
   // Greeting 텍스트 매핑
@@ -480,6 +515,47 @@ export default function MainContent() {
       }
     };
 
+    const clearAppsHintTimeout = () => {
+      if (appsHintTimeoutRef.current !== null) {
+        window.clearTimeout(appsHintTimeoutRef.current);
+        appsHintTimeoutRef.current = null;
+      }
+      if (appsHintShackleRafRef.current !== null) {
+        window.cancelAnimationFrame(appsHintShackleRafRef.current);
+        appsHintShackleRafRef.current = null;
+      }
+    };
+
+    const showAppsLockHint = () => {
+      clearAppsHintTimeout();
+      appsHintPhaseRef.current = 'hint';
+      setIsAppsHintShackleOpen(false);
+      setAppsHintPhase('hint');
+    };
+
+    // 해제 연출. 고리는 자물쇠가 떠오른 뒤에 열리도록 transition delay로 미뤄져 있어서
+    // 여기서는 '닫힘 -> 열림' 상태만 한 프레임 뒤에 뒤집어 준다.
+    const startAppsHintUnlockOutro = () => {
+      clearAppsHintTimeout();
+
+      appsHintPhaseRef.current = 'unlocking';
+      setAppsHintPhase('unlocking');
+      setIsAppsHintShackleOpen(false);
+
+      appsHintShackleRafRef.current = window.requestAnimationFrame(() => {
+        appsHintShackleRafRef.current = window.requestAnimationFrame(() => {
+          appsHintShackleRafRef.current = null;
+          setIsAppsHintShackleOpen(true);
+        });
+      });
+
+      appsHintTimeoutRef.current = window.setTimeout(() => {
+        appsHintTimeoutRef.current = null;
+        appsHintPhaseRef.current = null;
+        setAppsHintPhase(null);
+      }, APPS_HINT_LOCK_APPEAR_MS + APPS_UNLOCK_OPEN_MS + APPS_HINT_LOCK_HOLD_MS);
+    };
+
     const clearAppStopWaitingForGesture = () => {
       if (wheelGestureIdleTimeoutRef.current !== null) {
         window.clearTimeout(wheelGestureIdleTimeoutRef.current);
@@ -492,10 +568,20 @@ export default function MainContent() {
       appStopWaitingProgressRef.current = null;
       appsStopStartedAtRef.current = null;
       setAppStopWaitingForGesture(null);
+      // 문구가 떠 있었다면 그 자리에 자물쇠가 나타나 열린 뒤 전체가 함께 사라진다.
+      if (appsHintPhaseRef.current === 'hint') {
+        startAppsHintUnlockOutro();
+      }
       startAppsUnlockAnimation();
     };
 
     releaseAppsStopRef.current = clearAppStopWaitingForGesture;
+
+    // 막힌 채로 안내를 띄울 만큼 오래 굴렸는지.
+    const hasHeldLongEnoughForHint = () => {
+      const startedAt = appsStopStartedAtRef.current;
+      return startedAt !== null && Date.now() - startedAt >= APPS_LOCK_HINT_DELAY_MS;
+    };
 
     // 잠긴 뒤 최소 표시 시간이 아직 안 지났는지. 이 동안에는 어떤 이유로도 풀리지 않는다.
     const isWithinAppsLockMinHold = () => {
@@ -585,6 +671,11 @@ export default function MainContent() {
         scheduleAppStopWaitingTimeout();
         event.preventDefault();
         event.stopPropagation();
+        // 막힌 채로 계속 굴리고 있다는 뜻이지만, 곧바로 띄우면 너무 급하다.
+        // 잠긴 지 APPS_LOCK_HINT_DELAY_MS 이상 지나도록 굴리고 있을 때만 띄운다.
+        if (appsHintPhaseRef.current === null && hasHeldLongEnoughForHint()) {
+          showAppsLockHint();
+        }
         sendScrollDebugLog('wheel-blocked-waiting', { direction, scrollY: currentScrollY });
         return true;
       }
@@ -695,6 +786,17 @@ export default function MainContent() {
         window.cancelAnimationFrame(appsLockDropRafRef.current);
         appsLockDropRafRef.current = null;
       }
+      if (appsHintTimeoutRef.current !== null) {
+        window.clearTimeout(appsHintTimeoutRef.current);
+        appsHintTimeoutRef.current = null;
+      }
+      if (appsHintShackleRafRef.current !== null) {
+        window.cancelAnimationFrame(appsHintShackleRafRef.current);
+        appsHintShackleRafRef.current = null;
+      }
+      appsHintPhaseRef.current = null;
+      setAppsHintPhase(null);
+      setIsAppsHintShackleOpen(false);
       appStopWaitingForGestureRef.current = null;
       setAppStopWaitingForGesture(null);
       setAppsLockPhase(null);
@@ -770,6 +872,8 @@ export default function MainContent() {
   // 페이드아웃(opened) 중에도 고리는 열린 채로 두어야 사라지면서 다시 내려오지 않는다.
   const isAppsShackleOpen =
     isAppsLockDropping || appsLockPhase === 'opening' || appsLockPhase === 'opened';
+  // 안내 오버레이(띠 + 문구 + 해제 자물쇠)는 통째로 뜨고 통째로 사라진다.
+  const isAppsHintVisible = appsHintPhase !== null;
   // home 마커의 scrollProgress === 0 과 같은 성격: 멈춰 섰던 자리에서만 활성.
   const isAppsInActiveRange =
     appsActiveAnchor !== null &&
@@ -804,6 +908,88 @@ export default function MainContent() {
           }`} style={{ color: 'rgb(196 181 253)' }}>
             JACE-S
           </span>
+
+          {/* apps 진입 정지 안내 - 화면 중앙.
+              잠금이 풀리면 문구 위로 자물쇠가 떠올라 열리고, 띠/문구/자물쇠가 한꺼번에 사라진다. */}
+          <div
+            aria-hidden="true"
+            className="pointer-events-none fixed inset-0 z-40 flex items-center justify-center"
+            style={{
+              opacity: isAppsHintVisible ? 1 : 0,
+              transition: `opacity ${
+                isAppsHintVisible ? APPS_LOCK_HINT_FADE_IN_MS : APPS_LOCK_HINT_FADE_OUT_MS
+              }ms ease-out`,
+            }}
+          >
+            <div className="relative flex w-full items-center justify-center">
+              {/* 문구 폭 남짓의 띠. 좌우로만 사라지고 위아래는 보더로 또렷하게 끊는다. */}
+              <span
+                className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2"
+                style={{
+                  width: APPS_LOCK_HINT_BAND_WIDTH,
+                  height: APPS_LOCK_HINT_BAND_HEIGHT,
+                  background: APPS_LOCK_HINT_BAND_GRADIENT,
+                }}
+              >
+                <span
+                  className="absolute left-0 top-0 w-full"
+                  style={{
+                    height: APPS_LOCK_HINT_BAND_BORDER_WIDTH,
+                    background: APPS_LOCK_HINT_BAND_BORDER,
+                  }}
+                />
+                <span
+                  className="absolute bottom-0 left-0 w-full"
+                  style={{
+                    height: APPS_LOCK_HINT_BAND_BORDER_WIDTH,
+                    background: APPS_LOCK_HINT_BAND_BORDER,
+                  }}
+                />
+              </span>
+              {/* 해제되는 순간 문구 위로 떠오르는 자물쇠 (네비게이터의 것과 같은 모양) */}
+              <svg
+                className="absolute left-1/2 top-1/2 text-amber-300 drop-shadow-[0_0_8px_rgba(251,191,36,0.7)]"
+                fill="currentColor"
+                viewBox="0 0 24 24"
+                xmlns="http://www.w3.org/2000/svg"
+                style={{
+                  width: 'clamp(1.1rem, 2.8vh, 1.6rem)',
+                  height: 'clamp(1.1rem, 2.8vh, 1.6rem)',
+                  transform: 'translate(-50%, -50%) translateY(-2.1rem)',
+                  opacity: appsHintPhase === 'unlocking' ? 1 : 0,
+                  transition: `opacity ${APPS_HINT_LOCK_APPEAR_MS}ms ease-out`,
+                }}
+              >
+                {/* 고리를 먼저 그려서 몸통 뒤(z축 아래)에 둔다 */}
+                <path
+                  d={APPS_SHACKLE_PATH}
+                  fill="none"
+                  stroke="currentColor"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth="1.7"
+                  style={{
+                    transformBox: 'view-box',
+                    transform: isAppsHintShackleOpen ? APPS_SHACKLE_OPEN_TRANSFORM : 'none',
+                    // 자물쇠가 먼저 떠오른 뒤에 고리가 열리도록 그만큼 미룬다.
+                    transition: `transform ${APPS_UNLOCK_OPEN_MS}ms ${APPS_UNLOCK_OPEN_EASING} ${APPS_HINT_LOCK_APPEAR_MS}ms`,
+                  }}
+                />
+                <path d={APPS_LOCK_BODY_PATH} fill="currentColor" />
+                <circle cx="12" cy="15.4" r="1.15" fill="rgb(15 23 42)" />
+              </svg>
+              <span
+                className="relative whitespace-nowrap text-white"
+                style={{
+                  opacity: APPS_LOCK_HINT_OPACITY,
+                  fontSize: 'clamp(0.7rem, 1.9vh, 0.9rem)',
+                  letterSpacing: '0.14em',
+                }}
+              >
+                {appsLockHintText[language]}
+              </span>
+            </div>
+          </div>
 
           {/* 언어 선택 UI - 오른쪽 위 고정 */}
           <div className={`fixed right-8 top-8 z-50 transition-all duration-1000 ease-out ${
