@@ -3,6 +3,9 @@ import { useCallback, useEffect, useState } from 'react';
 export type WelcomeMode = 'checking' | 'full' | 'returning';
 
 const WELCOME_SESSION_KEY = 'jace-s:welcome-complete';
+// 재방문이어도 항상 welcome 화면을 그대로 보여준다.
+// false로 두면 같은 세션 안에서 되돌아온 방문은 compact 오버레이로 지나간다.
+const ALWAYS_SHOW_FULL_WELCOME = true;
 
 export function useWelcomeFlow() {
   const [showContent, setShowContent] = useState(false);
@@ -11,6 +14,11 @@ export function useWelcomeFlow() {
 
   useEffect(() => {
     const resolveWelcomeMode = window.setTimeout(() => {
+      if (ALWAYS_SHOW_FULL_WELCOME) {
+        setWelcomeMode('full');
+        return;
+      }
+
       try {
         const hasCompletedWelcome = window.sessionStorage.getItem(WELCOME_SESSION_KEY) === 'true';
         setWelcomeMode(hasCompletedWelcome ? 'returning' : 'full');
